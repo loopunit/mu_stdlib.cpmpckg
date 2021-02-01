@@ -22,7 +22,7 @@ if (NOT DEFINED CPM_SCRIPTS)
 	CPMAddPackage(
 		NAME cpmpckg
 		GITHUB_REPOSITORY loopunit/cpmpckg
-		GIT_TAG d14c7c66cf6392c7cd8df1eb0cb7037585b0f3df
+		GIT_TAG 65432fa96beb5d914050986530728c159a268d53
 		DOWNLOAD_ONLY true)
 
 	include(${cpmpckg_SOURCE_DIR}/cmake/add_cpm_module.cmake)
@@ -125,4 +125,9 @@ if(MU_STDLIB_BUILD_TESTS)
 		TARGET_NAME singleton_virtual_dependencies
 		SOURCES
 			${CMAKE_CURRENT_LIST_DIR}/tests/singleton_virtual_dependencies.cpp)
+
+	add_local_test(
+		TARGET_NAME hello
+		SOURCES
+			${CMAKE_CURRENT_LIST_DIR}/tests/hello.cpp)
 endif()

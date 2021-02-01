@@ -1,9 +1,16 @@
 #pragma once
 
+#include <boost/leaf.hpp>
+
 #include <functional>
 #include <atomic>
 #include <array>
 #include <cstdint>
+
+namespace mu
+{
+	namespace leaf = boost::leaf;
+}
 
 namespace mu
 {
@@ -815,3 +822,8 @@ namespace mu
 		}
 	} // namespace time
 } // namespace mu
+
+namespace mu
+{
+
+}
