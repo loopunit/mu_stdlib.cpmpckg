@@ -16,6 +16,22 @@
 
 namespace mu
 {
+	unsigned long custom_formatmessage(
+		unsigned long	dwFlags,
+		const void*		lpSource,
+		unsigned long	dwMessageId,
+		unsigned long	dwLanguageId,
+		char*			lpBuffer,
+		unsigned long	nSize,
+		va_list*		Arguments)
+		{
+			return ::FormatMessageA( dwFlags, lpSource, dwMessageId, dwLanguageId, lpBuffer, nSize, Arguments);
+		}
+		
+}
+
+namespace mu
+{
 	namespace time
 	{
 		namespace details

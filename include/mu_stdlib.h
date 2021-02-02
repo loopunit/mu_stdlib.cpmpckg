@@ -1,11 +1,51 @@
 #pragma once
 
-#include <boost/leaf.hpp>
-
 #include <functional>
 #include <atomic>
 #include <array>
 #include <cstdint>
+
+// TODO: leaf pulls in Windows.h via common.hpp, so we bypass that here to avoid the mess
+// if something did pull in windows.h, this is fine. custom_formatmessage is just a wrapper.
+#ifndef _WINDOWS_
+namespace mu
+{
+	unsigned long custom_formatmessage(
+		unsigned long	dwFlags,
+		const void*		lpSource,
+		unsigned long	dwMessageId,
+		unsigned long	dwLanguageId,
+		char*			lpBuffer,
+		unsigned long	nSize,
+		va_list*		Arguments);
+}
+
+#define FormatMessageA( DWORD_dwFlags, LPCVOID_lpSource, DWORD_dwMessageId, DWORD_dwLanguageId, LPSTR_lpBuffer, DWORD_nSize, va_list_Arguments) mu::custom_formatmessage(DWORD_dwFlags, LPCVOID_lpSource, DWORD_dwMessageId, DWORD_dwLanguageId, LPSTR_lpBuffer, DWORD_nSize, va_list_Arguments)
+#define _WINDOWS_
+#define _WINDOWS_redefined true
+#define FORMAT_MESSAGE_ALLOCATE_BUFFER	0x00000100
+#define FORMAT_MESSAGE_FROM_SYSTEM		0x00001000
+#define FORMAT_MESSAGE_IGNORE_INSERTS	0x00000200
+#define MAKELANGID(p, s)				((((unsigned short  )(s)) << 10) | (unsigned short  )(p))
+#define LANG_NEUTRAL                    0x00
+#define SUBLANG_DEFAULT                 0x01
+#define LPSTR							char*
+#else // #ifndef _WINDOWS_
+#define _WINDOWS_redefined false
+#endif // #else // #ifndef _WINDOWS_
+#include <boost/leaf.hpp>
+#if _WINDOWS_redefined
+#undef FormatMessageA
+#undef _WINDOWS_
+#undef _WINDOWS_redefined
+#undef FORMAT_MESSAGE_ALLOCATE_BUFFER
+#undef FORMAT_MESSAGE_FROM_SYSTEM
+#undef FORMAT_MESSAGE_IGNORE_INSERTS
+#undef MAKELANGID
+#undef LANG_NEUTRAL
+#undef SUBLANG_DEFAULT
+#undef LPSTR
+#endif // #if _WINDOWS_redefined
 
 namespace mu
 {
@@ -70,7 +110,7 @@ namespace mu
 
 		private:
 			static inline uint64_t s_instance_memory[1 + (sizeof(T) / sizeof(uint64_t))];
-			static inline T*	   s_instance = nullptr;
+			static inline T* s_instance = nullptr;
 		};
 
 		template<size_t POOL_COUNT>
@@ -180,7 +220,7 @@ namespace mu
 		{
 		public:
 			using factory = typename T_FACTORY;
-			using type	  = typename T;
+			using type = typename T;
 
 			T* operator->()
 			{
@@ -219,7 +259,7 @@ namespace mu
 					singleton_cleanup_root()->push([]() -> void {
 						delete s_instance;
 						s_instance = nullptr;
-					});
+						});
 					return true;
 				}();
 			}
@@ -240,7 +280,7 @@ namespace mu
 	{
 	public:
 		using singleton_type = typename T_SINGLETON;
-		using type			 = typename singleton_type::type;
+		using type = typename singleton_type::type;
 
 		type* operator->()
 		{
@@ -282,7 +322,7 @@ namespace mu
 
 	private:
 		static inline type* s_instance;
-		static type*		get_instance();
+		static type* get_instance();
 	};
 
 #define MU_EXPORT_SINGLETON(T)                                                                                                                                                     \
@@ -346,7 +386,7 @@ namespace mu
 
 		private:
 			static inline thread_local uint64_t s_instance_memory[1 + (sizeof(T) / sizeof(uint64_t))];
-			static inline thread_local T*		s_instance = nullptr;
+			static inline thread_local T* s_instance = nullptr;
 		};
 
 		using thread_local_singleton_cleanup_root = static_root_thread_local_singleton<singleton_cleanup_list<1024>>;
@@ -393,7 +433,7 @@ namespace mu
 					thread_local_singleton_cleanup_root()->push([]() -> void {
 						delete s_instance;
 						s_instance = nullptr;
-					});
+						});
 					return true;
 				}();
 			}
@@ -413,7 +453,7 @@ namespace mu
 	{
 	public:
 		using singleton_type = typename T_SINGLETON;
-		using type			 = typename singleton_type::type;
+		using type = typename singleton_type::type;
 
 		type* operator->()
 		{
@@ -455,7 +495,7 @@ namespace mu
 
 	private:
 		static inline thread_local type* s_instance;
-		static type*					 get_instance();
+		static type* get_instance();
 	};
 
 #define MU_EXPORT_THREAD_LOCAL_SINGLETON(T)                                                                                                                                        \
@@ -543,24 +583,24 @@ namespace mu
 
 			inline moment add(const moment& rhs) const noexcept
 			{
-				return moment{value + rhs.value};
+				return moment{ value + rhs.value };
 			}
 
 			inline moment sub(const moment& rhs) const noexcept
 			{
-				return moment{value - rhs.value};
+				return moment{ value - rhs.value };
 			}
 
 			template<typename T>
 			inline moment div(const T& rhs) const noexcept
 			{
-				return moment{static_cast<long double>(value) / static_cast<long double>(rhs)};
+				return moment{ static_cast<long double>(value) / static_cast<long double>(rhs) };
 			}
 
 			template<typename T>
 			inline moment mul(const T& rhs) const noexcept
 			{
-				return moment{static_cast<long double>(value) * static_cast<long double>(rhs)};
+				return moment{ static_cast<long double>(value) * static_cast<long double>(rhs) };
 			}
 
 			template<typename T>
@@ -817,7 +857,7 @@ namespace mu
 		{
 			const moment n = now();
 			const moment d = n - last_moment;
-			last_moment	   = n;
+			last_moment = n;
 			value += d.as_milliseconds<int64_t>();
 		}
 	} // namespace time
