@@ -42,6 +42,16 @@ CPMAddPackage(
 
 CPMAddBaseModule(boostorg_leaf)
 
+CPMAddPackage(
+	NAME scope_guard
+	GITHUB_REPOSITORY ricab/scope_guard
+	GIT_TAG 760de0a9ea0fec980a5244604ffa5b1acff2db7a
+	DOWNLOAD_ONLY true)
+
+if( NOT ${scope_guard_ADDED} )
+	message( FATAL_ERROR "Could not find scope_guard" )
+endif()
+
 set(mu_stdlib_SOURCE_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 file(GLOB mu_stdlib_headers
@@ -55,6 +65,7 @@ add_library(mu_stdlib STATIC ${mu_stdlib_sources} ${mu_stdlib_headers})
 
 target_include_directories(mu_stdlib
 	PUBLIC 
+		$<BUILD_INTERFACE:${scope_guard_SOURCE_DIR}>
 		$<BUILD_INTERFACE:${mu_stdlib_SOURCE_ROOT}/include>
 		$<INSTALL_INTERFACE:include>)
 
@@ -70,6 +81,10 @@ packageProject(
 	BINARY_DIR ${PROJECT_BINARY_DIR}
 	INCLUDE_DIR ${mu_stdlib_SOURCE_ROOT}/include
 	INCLUDE_DESTINATION include)
+
+install(
+	FILES ${scope_guard_SOURCE_DIR}/scope_guard.hpp
+	DESTINATION ${mu_stdlib_SOURCE_ROOT}/include)
 
 add_library(cpm_runtime::mu_stdlib ALIAS mu_stdlib)
 

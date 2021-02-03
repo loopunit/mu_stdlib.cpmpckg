@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 
+#include <scope_guard.hpp>
+
 // TODO: leaf pulls in Windows.h via common.hpp, so we bypass that here to avoid the mess
 // if something did pull in windows.h, this is fine. custom_formatmessage is just a wrapper.
 #ifndef _WINDOWS_
