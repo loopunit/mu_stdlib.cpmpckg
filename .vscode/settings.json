@@ -1,0 +1,11 @@
+{
+    "cmake.cacheInit": null,
+    "cmake.generator": "Ninja",
+    "cmake.configureArgs": [
+        "-DCPM_BUILD_TEST:BOOL=on"
+    ],
+    "cmake.configureOnOpen": false,
+    "cmake.installPrefix": "${workspaceFolder}/out/${buildType}/install",
+    "cmake.buildDirectory": "${workspaceFolder}/out/${buildType}/build",
+    "cmake.configureOnEdit": false
+}
