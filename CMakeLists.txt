@@ -22,7 +22,7 @@ if (NOT DEFINED CPM_SCRIPTS)
 	CPMAddPackage(
 		NAME cpmpckg
 		GITHUB_REPOSITORY loopunit/cpmpckg
-		GIT_TAG 9d5271a66365729b54588d166ec672d7db0a039c
+		GIT_TAG 10daafe97294a85d6618266d08fbfaba27d5381f
 		DOWNLOAD_ONLY true)
 
 	include(${cpmpckg_SOURCE_DIR}/cmake/add_cpm_module.cmake)
@@ -71,7 +71,7 @@ target_include_directories(mu_stdlib
 
 target_link_libraries(mu_stdlib
 	PUBLIC
-		cpm_runtime::boostorg_leaf)
+		cpm_install::boostorg_leaf)
 
 set_target_properties(mu_stdlib PROPERTIES CXX_STANDARD 17)
 
@@ -86,7 +86,7 @@ install(
 	FILES ${scope_guard_SOURCE_DIR}/scope_guard.hpp
 	DESTINATION ${mu_stdlib_SOURCE_ROOT}/include)
 
-add_library(cpm_runtime::mu_stdlib ALIAS mu_stdlib)
+add_library(cpm_install::mu_stdlib ALIAS mu_stdlib)
 
 if(MU_STDLIB_BUILD_TESTS)
 	function(add_local_test)	
@@ -108,7 +108,7 @@ if(MU_STDLIB_BUILD_TESTS)
 
 		target_link_libraries(${arg_TARGET_NAME} 
 			PUBLIC
-				cpm_runtime::mu_stdlib)
+				cpm_install::mu_stdlib)
 	endfunction()
 	
 	add_local_test(
