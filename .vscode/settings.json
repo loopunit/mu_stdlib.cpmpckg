@@ -2,7 +2,8 @@
     "cmake.cacheInit": null,
     "cmake.generator": "Ninja",
     "cmake.configureArgs": [
-        "-DCPM_BUILD_TEST:BOOL=on"
+        "-DCPM_BUILD_TEST:BOOL=on",
+        "-DCPM_DEV_ROOT:PATH=${userHome}/dev/loopunit"
     ],
     "cmake.configureOnOpen": false,
     "cmake.installPrefix": "${workspaceFolder}/out/${buildType}/install",
