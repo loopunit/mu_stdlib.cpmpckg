@@ -14,7 +14,7 @@ include(ExternalProject)
 
 ####
 
-if (NOT DEFINED CPM_SCRIPTS)
+if (NOT DEFINED cpmpckg_SOURCE_DIR)
 	include(cmake/CPM.cmake)
 
 	# One frustrating part of this project setup is the circular dependency between cpmpckg and this repo.
@@ -27,8 +27,9 @@ if (NOT DEFINED CPM_SCRIPTS)
 
 	include(${cpmpckg_SOURCE_DIR}/cmake/add_cpm_module.cmake)
 else()
-	include(${CPM_SCRIPTS}/CPM.cmake)
-	include(${CPM_SCRIPTS}/add_cpm_module.cmake)
+	set(CPM_SCRIPTS ${cpmpckg_SOURCE_DIR}/cmake)
+	include(${cpmpckg_SOURCE_DIR}/cmake/CPM.cmake)
+	include(${cpmpckg_SOURCE_DIR}/cmake/add_cpm_module.cmake)
 endif()
 
 ####
