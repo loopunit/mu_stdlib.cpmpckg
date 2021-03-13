@@ -11,6 +11,16 @@
 // TODO: leaf pulls in Windows.h via common.hpp, so we bypass that here to avoid the mess
 // if something did pull in windows.h, this is fine. custom_formatmessage is just a wrapper.
 #ifndef _WINDOWS_
+
+#ifndef LPVOID
+#define LPVOID void*
+#define LPVOID_redefined
+#endif
+#ifndef LPCSTR
+#define LPCSTR char*
+#define LPCSTR_redefined
+#endif
+
 namespace mu
 {
 	unsigned long custom_formatmessage(
@@ -39,6 +49,14 @@ namespace mu
 #endif // #else // #ifndef _WINDOWS_
 #include <boost/leaf.hpp>
 #if _WINDOWS_redefined
+#ifdef LPVOID_redefined
+#undef LPVOID
+#undef LPVOID_redefined
+#endif
+#ifdef LPCSTR_redefined
+#undef LPCSTR_redefined
+#undef LPCSTR
+#endif
 #undef FormatMessageA
 #undef _WINDOWS_
 #undef _WINDOWS_redefined
