@@ -17,18 +17,41 @@
 namespace mu
 {
 	unsigned long custom_formatmessage(
-		unsigned long	dwFlags,
-		const void*		lpSource,
-		unsigned long	dwMessageId,
-		unsigned long	dwLanguageId,
-		char*			lpBuffer,
-		unsigned long	nSize,
-		va_list*		Arguments)
+		unsigned long dwFlags,
+		const void*	  lpSource,
+		unsigned long dwMessageId,
+		unsigned long dwLanguageId,
+		char*		  lpBuffer,
+		unsigned long nSize,
+		va_list*	  Arguments) noexcept
+	{
+		return ::FormatMessageA(dwFlags, lpSource, dwMessageId, dwLanguageId, lpBuffer, nSize, Arguments);
+	}
+
+} // namespace mu
+
+namespace mu
+{
+	void terminate_handler() noexcept
+	{
+		// rethrow and try to untangle
+		if (auto x = std::current_exception())
 		{
-			return ::FormatMessageA( dwFlags, lpSource, dwMessageId, dwLanguageId, lpBuffer, nSize, Arguments);
+			leaf::try_handle_all(
+				[&]() -> leaf::result<void>
+				{
+					std::rethrow_exception(x);
+				},
+				[](leaf::error_info const&)
+				{
+					std::_Exit(EXIT_FAILURE);
+				});
 		}
-		
-}
+		std::_Exit(EXIT_FAILURE);
+	}
+
+	const auto global_terminator{std::set_terminate(terminate_handler)};
+} // namespace mu
 
 namespace mu
 {
@@ -53,12 +76,12 @@ namespace mu
 			return details::s_performance_frequency;
 		}
 
-		void calibrate()
+		void calibrate() noexcept
 		{
 			// TBD
 		}
 
-		void init()
+		void init() noexcept
 		{
 			details::s_performance_frequency = details::get_perf_frequency();
 		}
@@ -87,7 +110,8 @@ namespace mu
 			{
 				SwitchToThread();
 				QueryPerformanceCounter(&current_moment);
-			} while (current_moment.QuadPart < end_moment.QuadPart);
+			}
+			while (current_moment.QuadPart < end_moment.QuadPart);
 		}
 
 		void set_high_resolution_timer() noexcept

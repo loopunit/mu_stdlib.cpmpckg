@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 
+//#define SG_REQUIRE_NOEXCEPT_IN_CPP17
 #include <scope_guard.hpp>
 
 // TODO: leaf pulls in Windows.h via common.hpp, so we bypass that here to avoid the mess
@@ -13,25 +14,26 @@
 namespace mu
 {
 	unsigned long custom_formatmessage(
-		unsigned long	dwFlags,
-		const void*		lpSource,
-		unsigned long	dwMessageId,
-		unsigned long	dwLanguageId,
-		char*			lpBuffer,
-		unsigned long	nSize,
-		va_list*		Arguments);
+		unsigned long dwFlags,
+		const void*	  lpSource,
+		unsigned long dwMessageId,
+		unsigned long dwLanguageId,
+		char*		  lpBuffer,
+		unsigned long nSize,
+		va_list*	  Arguments) noexcept;
 }
 
-#define FormatMessageA( DWORD_dwFlags, LPCVOID_lpSource, DWORD_dwMessageId, DWORD_dwLanguageId, LPSTR_lpBuffer, DWORD_nSize, va_list_Arguments) mu::custom_formatmessage(DWORD_dwFlags, LPCVOID_lpSource, DWORD_dwMessageId, DWORD_dwLanguageId, LPSTR_lpBuffer, DWORD_nSize, va_list_Arguments)
+#define FormatMessageA(DWORD_dwFlags, LPCVOID_lpSource, DWORD_dwMessageId, DWORD_dwLanguageId, LPSTR_lpBuffer, DWORD_nSize, va_list_Arguments)                                     \
+	mu::custom_formatmessage(DWORD_dwFlags, LPCVOID_lpSource, DWORD_dwMessageId, DWORD_dwLanguageId, LPSTR_lpBuffer, DWORD_nSize, va_list_Arguments)
 #define _WINDOWS_
-#define _WINDOWS_redefined true
-#define FORMAT_MESSAGE_ALLOCATE_BUFFER	0x00000100
-#define FORMAT_MESSAGE_FROM_SYSTEM		0x00001000
-#define FORMAT_MESSAGE_IGNORE_INSERTS	0x00000200
-#define MAKELANGID(p, s)				((((unsigned short  )(s)) << 10) | (unsigned short  )(p))
-#define LANG_NEUTRAL                    0x00
-#define SUBLANG_DEFAULT                 0x01
-#define LPSTR							char*
+#define _WINDOWS_redefined			   true
+#define FORMAT_MESSAGE_ALLOCATE_BUFFER 0x00000100
+#define FORMAT_MESSAGE_FROM_SYSTEM	   0x00001000
+#define FORMAT_MESSAGE_IGNORE_INSERTS  0x00000200
+#define MAKELANGID(p, s)			   ((((unsigned short)(s)) << 10) | (unsigned short)(p))
+#define LANG_NEUTRAL				   0x00
+#define SUBLANG_DEFAULT				   0x01
+#define LPSTR						   char*
 #else // #ifndef _WINDOWS_
 #define _WINDOWS_redefined false
 #endif // #else // #ifndef _WINDOWS_
@@ -57,7 +59,7 @@ namespace mu
 namespace mu
 {
 	template<typename E>
-	constexpr auto underlying_cast(E e) -> typename std::underlying_type<E>::type
+	constexpr auto underlying_cast(E e) noexcept -> typename std::underlying_type<E>::type
 	{
 		return static_cast<typename std::underlying_type<E>::type>(e);
 	}
@@ -71,29 +73,30 @@ namespace mu
 		class static_root_singleton
 		{
 		public:
-			T* operator->()
+			T* operator->() noexcept
 			{
 				return s_instance;
 			}
 
-			const T* operator->() const
+			const T* operator->() const noexcept
 			{
 				return s_instance;
 			}
 
-			T& operator*()
+			T& operator*() noexcept
 			{
 				return *s_instance;
 			}
 
-			const T& operator*() const
+			const T& operator*() const noexcept
 			{
 				return *s_instance;
 			}
 
-			static_root_singleton()
+			static_root_singleton() noexcept
 			{
-				static bool static_init = []() -> bool {
+				static bool static_init = []() -> bool
+				{
 					s_instance = new (&s_instance_memory[0]) T();
 					std::atexit(destroy);
 					return true;
@@ -101,7 +104,7 @@ namespace mu
 			}
 
 		protected:
-			static void destroy()
+			static void destroy() noexcept
 			{
 				if (s_instance)
 				{
@@ -112,7 +115,7 @@ namespace mu
 
 		private:
 			static inline uint64_t s_instance_memory[1 + (sizeof(T) / sizeof(uint64_t))];
-			static inline T* s_instance = nullptr;
+			static inline T*	   s_instance = nullptr;
 		};
 
 		template<size_t POOL_COUNT>
@@ -121,12 +124,12 @@ namespace mu
 		public:
 			using cleanup_func = std::function<void()>;
 
-			void push(cleanup_func f)
+			void push(cleanup_func f) noexcept
 			{
 				s_cleanup_funcs[s_cleanup_index.fetch_add(1)] = f;
 			}
 
-			~singleton_cleanup_list()
+			~singleton_cleanup_list() noexcept
 			{
 				for (auto i = s_cleanup_index.load(); i > 0; --i)
 				{
@@ -147,7 +150,7 @@ namespace mu
 		{
 		private:
 			template<typename T_ARG, typename... T_ARGS>
-			static inline void update_dependencies_impl()
+			static inline void update_dependencies_impl() noexcept
 			{
 				const typename T_ARG::type* t = T_ARG().get();
 				if constexpr (sizeof...(T_ARGS) > 0)
@@ -157,7 +160,7 @@ namespace mu
 			}
 
 		public:
-			static inline void update()
+			static inline void update() noexcept
 			{
 				if constexpr (sizeof...(T_DEPS) > 0)
 				{
@@ -169,7 +172,7 @@ namespace mu
 		template<typename T, typename... T_DEPS>
 		struct singleton_factory
 		{
-			static inline T* create()
+			static inline T* create() noexcept
 			{
 				if constexpr (sizeof...(T_DEPS) > 0)
 				{
@@ -182,7 +185,7 @@ namespace mu
 		template<typename T>
 		struct virtual_singleton_factory
 		{
-			static T* create();
+			static T* create() noexcept;
 		};
 	} // namespace details
 
@@ -192,7 +195,7 @@ namespace mu
 		namespace details                                                                                                                                                          \
 		{                                                                                                                                                                          \
 			template<>                                                                                                                                                             \
-			T* virtual_singleton_factory<T>::create()                                                                                                                              \
+			T* virtual_singleton_factory<T>::create() noexcept                                                                                                                     \
 			{                                                                                                                                                                      \
 				return new T_DERIVED;                                                                                                                                              \
 			}                                                                                                                                                                      \
@@ -206,7 +209,7 @@ namespace mu
 		namespace details                                                                                                                                                          \
 		{                                                                                                                                                                          \
 			template<>                                                                                                                                                             \
-			T* virtual_singleton_factory<T>::create()                                                                                                                              \
+			T* virtual_singleton_factory<T>::create() noexcept                                                                                                                     \
 			{                                                                                                                                                                      \
 				singleton_dependencies<__VA_ARGS__>::update();                                                                                                                     \
 				return new T_DERIVED;                                                                                                                                              \
@@ -222,45 +225,48 @@ namespace mu
 		{
 		public:
 			using factory = typename T_FACTORY;
-			using type = typename T;
+			using type	  = typename T;
 
-			T* operator->()
+			T* operator->() noexcept
 			{
 				return s_instance;
 			}
 
-			const T* operator->() const
+			const T* operator->() const noexcept
 			{
 				return s_instance;
 			}
 
-			T& operator*()
+			T& operator*() noexcept
 			{
 				return *s_instance;
 			}
 
-			const T& operator*() const
+			const T& operator*() const noexcept
 			{
 				return *s_instance;
 			}
 
-			T* get()
+			T* get() noexcept
 			{
 				return s_instance;
 			}
 
-			const T* get() const
+			const T* get() const noexcept
 			{
 				return s_instance;
 			}
 
-			singleton_base()
+			singleton_base() noexcept
 			{
-				static bool static_init = []() -> bool {
+				static bool static_init = []() -> bool
+				{
 					s_instance = factory::create();
-					singleton_cleanup_root()->push([]() -> void {
-						delete s_instance;
-						s_instance = nullptr;
+					singleton_cleanup_root()->push(
+						[]() -> void
+						{
+							delete s_instance;
+							s_instance = nullptr;
 						});
 					return true;
 				}();
@@ -282,41 +288,42 @@ namespace mu
 	{
 	public:
 		using singleton_type = typename T_SINGLETON;
-		using type = typename singleton_type::type;
+		using type			 = typename singleton_type::type;
 
-		type* operator->()
+		type* operator->() noexcept
 		{
 			return s_instance;
 		}
 
-		const type* operator->() const
+		const type* operator->() const noexcept
 		{
 			return s_instance;
 		}
 
-		type& operator*()
+		type& operator*() noexcept
 		{
 			return *s_instance;
 		}
 
-		const type& operator*() const
+		const type& operator*() const noexcept
 		{
 			return *s_instance;
 		}
 
-		type* get()
+		type* get() noexcept
 		{
 			return s_instance;
 		}
 
-		const type* get() const
+		const type* get() const noexcept
 		{
 			return s_instance;
 		}
 
-		exported_singleton()
+		exported_singleton() noexcept
 		{
-			static bool static_init = []() -> bool {
+			static bool static_init = []() -> bool
+			{
 				s_instance = get_instance();
 				return true;
 			}();
@@ -324,12 +331,12 @@ namespace mu
 
 	private:
 		static inline type* s_instance;
-		static type* get_instance();
+		static type*		get_instance() noexcept;
 	};
 
 #define MU_EXPORT_SINGLETON(T)                                                                                                                                                     \
 	template<>                                                                                                                                                                     \
-	T::type* T::get_instance()                                                                                                                                                     \
+	T::type* T::get_instance() noexcept                                                                                                                                            \
 	{                                                                                                                                                                              \
 		return singleton_type().get();                                                                                                                                             \
 	}                                                                                                                                                                              \
@@ -337,7 +344,7 @@ namespace mu
 
 #define MU_EXPORT_SINGLETON_DEPS(T, ...)                                                                                                                                           \
 	template<>                                                                                                                                                                     \
-	T::type* T::get_instance()                                                                                                                                                     \
+	T::type* T::get_instance() noexcept                                                                                                                                            \
 	{                                                                                                                                                                              \
 		::mu::details::singleton_dependencies<__VA_ARGS__>::update();                                                                                                              \
 		return singleton_type().get();                                                                                                                                             \
@@ -350,26 +357,27 @@ namespace mu
 		class static_root_thread_local_singleton
 		{
 		public:
-			T* operator->()
+			T* operator->() noexcept
 			{
 				return s_instance;
 			}
-			const T* operator->() const
+			const T* operator->() const noexcept
 			{
 				return s_instance;
 			}
-			T& operator*()
+			T& operator*() noexcept
 			{
 				return *s_instance;
 			}
-			const T& operator*() const
+			const T& operator*() const noexcept
 			{
 				return *s_instance;
 			}
 
-			static_root_thread_local_singleton()
+			static_root_thread_local_singleton() noexcept
 			{
-				static bool static_init = []() -> bool {
+				static bool static_init = []() -> bool
+				{
 					s_instance = new (&s_instance_memory[0]) T();
 					std::atexit(destroy);
 					return true;
@@ -377,7 +385,7 @@ namespace mu
 			}
 
 		protected:
-			static void destroy()
+			static void destroy() noexcept
 			{
 				if (s_instance)
 				{
@@ -388,7 +396,7 @@ namespace mu
 
 		private:
 			static inline thread_local uint64_t s_instance_memory[1 + (sizeof(T) / sizeof(uint64_t))];
-			static inline thread_local T* s_instance = nullptr;
+			static inline thread_local T*		s_instance = nullptr;
 		};
 
 		using thread_local_singleton_cleanup_root = static_root_thread_local_singleton<singleton_cleanup_list<1024>>;
@@ -398,43 +406,46 @@ namespace mu
 		{
 		public:
 			using type = typename T;
-			T* operator->()
+			T* operator->() noexcept
 			{
 				return s_instance;
 			}
 
-			const T* operator->() const
+			const T* operator->() const noexcept
 			{
 				return s_instance;
 			}
 
-			T& operator*()
+			T& operator*() noexcept
 			{
 				return *s_instance;
 			}
 
-			const T& operator*() const
+			const T& operator*() const noexcept
 			{
 				return *s_instance;
 			}
 
-			T* get()
+			T* get() noexcept
 			{
 				return s_instance;
 			}
 
-			const T* get() const
+			const T* get() const noexcept
 			{
 				return s_instance;
 			}
 
-			thread_local_singleton_base()
+			thread_local_singleton_base() noexcept
 			{
-				static thread_local bool static_init = []() -> bool {
+				static thread_local bool static_init = []() -> bool
+				{
 					s_instance = new T();
-					thread_local_singleton_cleanup_root()->push([]() -> void {
-						delete s_instance;
-						s_instance = nullptr;
+					thread_local_singleton_cleanup_root()->push(
+						[]() -> void
+						{
+							delete s_instance;
+							s_instance = nullptr;
 						});
 					return true;
 				}();
@@ -455,41 +466,42 @@ namespace mu
 	{
 	public:
 		using singleton_type = typename T_SINGLETON;
-		using type = typename singleton_type::type;
+		using type			 = typename singleton_type::type;
 
-		type* operator->()
+		type* operator->() noexcept
 		{
 			return s_instance;
 		}
 
-		const type* operator->() const
+		const type* operator->() const noexcept
 		{
 			return s_instance;
 		}
 
-		type& operator*()
+		type& operator*() noexcept
 		{
 			return *s_instance;
 		}
 
-		const type& operator*() const
+		const type& operator*() const noexcept
 		{
 			return *s_instance;
 		}
 
-		type* get()
+		type* get() noexcept
 		{
 			return s_instance;
 		}
 
-		const type* get() const
+		const type* get() const noexcept
 		{
 			return s_instance;
 		}
 
-		exported_thread_local_singleton()
+		exported_thread_local_singleton() noexcept
 		{
-			static thread_local bool static_init = []() -> bool {
+			static thread_local bool static_init = []() -> bool
+			{
 				s_instance = get_instance();
 				return true;
 			}();
@@ -497,12 +509,12 @@ namespace mu
 
 	private:
 		static inline thread_local type* s_instance;
-		static type* get_instance();
+		static type*					 get_instance() noexcept;
 	};
 
 #define MU_EXPORT_THREAD_LOCAL_SINGLETON(T)                                                                                                                                        \
 	template<>                                                                                                                                                                     \
-	::mu::exported_thread_local_singleton<T>::type* ::mu::exported_thread_local_singleton<T>::get_instance()                                                                       \
+	::mu::exported_thread_local_singleton<T>::type* ::mu::exported_thread_local_singleton<T>::get_instance() noexcept                                                              \
 	{                                                                                                                                                                              \
 		return singleton_type().get();                                                                                                                                             \
 	}                                                                                                                                                                              \
@@ -517,8 +529,8 @@ namespace mu
 		int64_t get_now() noexcept;
 		void	sleep(const int64_t milliseconds) noexcept;
 		void	micro_sleep(const int64_t tx) noexcept;
-		void	init();
-		void	calibrate();
+		void	init() noexcept;
+		void	calibrate() noexcept;
 		void	set_high_resolution_timer() noexcept;
 		void	release_high_resolution_timer();
 
@@ -530,9 +542,9 @@ namespace mu
 		protected:
 			int64_t value;
 
-			moment(const int64_t v) noexcept : value(v) {}
+			moment(const int64_t v) noexcept : value(v) { }
 
-			moment(const long double v) noexcept : value(static_cast<int64_t>(v)) {}
+			moment(const long double v) noexcept : value(static_cast<int64_t>(v)) { }
 
 			friend moment now() noexcept;
 
@@ -549,7 +561,7 @@ namespace mu
 			friend moment nanoseconds(const T&) noexcept;
 
 		public:
-			moment() noexcept : value(0) {}
+			moment() noexcept : value(0) { }
 
 			inline moment& operator=(const moment& rhs) noexcept
 			{
@@ -585,24 +597,24 @@ namespace mu
 
 			inline moment add(const moment& rhs) const noexcept
 			{
-				return moment{ value + rhs.value };
+				return moment{value + rhs.value};
 			}
 
 			inline moment sub(const moment& rhs) const noexcept
 			{
-				return moment{ value - rhs.value };
+				return moment{value - rhs.value};
 			}
 
 			template<typename T>
 			inline moment div(const T& rhs) const noexcept
 			{
-				return moment{ static_cast<long double>(value) / static_cast<long double>(rhs) };
+				return moment{static_cast<long double>(value) / static_cast<long double>(rhs)};
 			}
 
 			template<typename T>
 			inline moment mul(const T& rhs) const noexcept
 			{
-				return moment{ static_cast<long double>(value) * static_cast<long double>(rhs) };
+				return moment{static_cast<long double>(value) * static_cast<long double>(rhs)};
 			}
 
 			template<typename T>
@@ -685,7 +697,7 @@ namespace mu
 			moment	 last_moment;
 
 		public:
-			long_clock() noexcept : value(0) {}
+			long_clock() noexcept : value(0) { }
 
 			template<typename T>
 			inline T as_seconds() const noexcept
@@ -859,7 +871,7 @@ namespace mu
 		{
 			const moment n = now();
 			const moment d = n - last_moment;
-			last_moment = n;
+			last_moment	   = n;
 			value += d.as_milliseconds<int64_t>();
 		}
 	} // namespace time
@@ -867,5 +879,4 @@ namespace mu
 
 namespace mu
 {
-
 }
