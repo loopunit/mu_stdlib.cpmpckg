@@ -22,7 +22,7 @@ if (NOT DEFINED cpmpckg_SOURCE_DIR)
 	CPMAddPackage(
 		NAME cpmpckg
 		GITHUB_REPOSITORY loopunit/cpmpckg
-		GIT_TAG 57f2899ed3922bc4d5d7c0fc93c37de69c12c52f
+		GIT_TAG 72ee31a763dca7ba16557e481da81d0644658caf
 		DOWNLOAD_ONLY true)
 
 	include(${cpmpckg_SOURCE_DIR}/cmake/add_cpm_module.cmake)
