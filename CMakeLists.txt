@@ -22,7 +22,7 @@ if (NOT DEFINED cpmpckg_SOURCE_DIR)
 	CPMAddPackage(
 		NAME cpmpckg
 		GITHUB_REPOSITORY loopunit/cpmpckg
-		GIT_TAG d92021769936a770f8eccc41b19e24f0bf606ff6
+		GIT_TAG 72ee31a763dca7ba16557e481da81d0644658caf
 		DOWNLOAD_ONLY true)
 
 	include(${cpmpckg_SOURCE_DIR}/cmake/add_cpm_module.cmake)
@@ -89,7 +89,7 @@ install(
 
 add_library(cpm_install::mu_stdlib ALIAS mu_stdlib)
 
-if (MU_STDLIB_BUILD_TESTS)
+if (CPM_BUILD_TEST)
 	function(add_local_test)	
 	    cmake_parse_arguments(
 			arg
