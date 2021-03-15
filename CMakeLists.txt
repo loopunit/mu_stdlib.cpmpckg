@@ -87,7 +87,15 @@ install(
 	FILES ${scope_guard_SOURCE_DIR}/scope_guard.hpp
 	DESTINATION ${mu_stdlib_SOURCE_ROOT}/include)
 
-add_library(cpm_install::mu_stdlib ALIAS mu_stdlib)
+if(MSVC)
+  if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set_target_properties(mu_stdlib PROPERTIES IMPORTED_CONFIGURATIONS "Debug")
+    set_target_properties(mu_stdlib PROPERTIES COMPILE_PDB_NAME mu_stdlib COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_INSTALL_PREFIX}/lib" )
+  elseif("${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo")
+    set_target_properties(mu_stdlib PROPERTIES IMPORTED_CONFIGURATIONS "RelWithDebInfo")
+    set_target_properties(mu_stdlib PROPERTIES COMPILE_PDB_NAME mu_stdlib COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_INSTALL_PREFIX}/lib" )
+  endif()
+endif()
 
 if (MU_STDLIB_BUILD_TESTS)
 	function(add_local_test)	
