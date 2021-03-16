@@ -74,7 +74,7 @@ target_link_libraries(mu_stdlib
 	PUBLIC
 		cpm_install::boostorg_leaf)
 
-set_target_properties(mu_stdlib PROPERTIES CXX_STANDARD 17)
+set_target_properties(mu_stdlib PROPERTIES CXX_STANDARD 20)
 
 packageProject(
 	NAME mu_stdlib
@@ -109,7 +109,7 @@ if (MU_STDLIB_BUILD_TESTS)
 		add_executable(${arg_TARGET_NAME}
 			${arg_SOURCES})
 
-		set_target_properties(${arg_TARGET_NAME} PROPERTIES CXX_STANDARD 17)
+		set_target_properties(${arg_TARGET_NAME} PROPERTIES CXX_STANDARD 20)
 
 		target_include_directories(${arg_TARGET_NAME}
 			PRIVATE 
@@ -117,7 +117,7 @@ if (MU_STDLIB_BUILD_TESTS)
 
 		target_link_libraries(${arg_TARGET_NAME} 
 			PUBLIC
-				cpm_install::mu_stdlib)
+				mu_stdlib)
 	endfunction()
 	
 	add_local_test(
