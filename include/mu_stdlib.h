@@ -242,8 +242,8 @@ namespace mu
 		class singleton_base
 		{
 		public:
-			using factory = typename T_FACTORY;
-			using type	  = typename T;
+			using factory = T_FACTORY;
+			using type	  = T;
 
 			T* operator->() noexcept
 			{
@@ -305,7 +305,7 @@ namespace mu
 	class exported_singleton
 	{
 	public:
-		using singleton_type = typename T_SINGLETON;
+		using singleton_type = T_SINGLETON;
 		using type			 = typename singleton_type::type;
 
 		type* operator->() noexcept
@@ -423,7 +423,7 @@ namespace mu
 		class thread_local_singleton_base
 		{
 		public:
-			using type = typename T;
+			using type = T;
 			T* operator->() noexcept
 			{
 				return s_instance;
@@ -483,7 +483,7 @@ namespace mu
 	class exported_thread_local_singleton
 	{
 	public:
-		using singleton_type = typename T_SINGLETON;
+		using singleton_type = T_SINGLETON;
 		using type			 = typename singleton_type::type;
 
 		type* operator->() noexcept
@@ -859,30 +859,30 @@ namespace mu
 		template<typename T>
 		inline void sleepseconds(const T& seconds) noexcept
 		{
-			sleep(moment().set_seconds(seconds).as_milliseconds<int64_t>());
+			sleep(moment().set_seconds(seconds).template as_milliseconds<int64_t>());
 		}
 
 		template<typename T>
 		inline void sleepmilliseconds(const T& seconds) noexcept
 		{
-			sleep(moment().set_milliseconds(seconds).as_milliseconds<int64_t>());
+			sleep(moment().set_milliseconds(seconds).template as_milliseconds<int64_t>());
 		}
 
 		template<typename T>
 		inline void sleepmicroseconds(const T& seconds) noexcept
 		{
-			sleep(moment().set_microseconds(seconds).as_milliseconds<int64_t>());
+			sleep(moment().set_microseconds(seconds).template as_milliseconds<int64_t>());
 		}
 
 		template<typename T>
 		inline void sleepticks(const T& tx) noexcept
 		{
-			sleep(moment().set_ticks(tx).as_milliseconds<int64_t>());
+			sleep(moment().set_ticks(tx).template as_milliseconds<int64_t>());
 		}
 
 		inline void sleep(const moment& t) noexcept
 		{
-			sleep(t.as_milliseconds<int64_t>());
+			sleep(t.template as_milliseconds<int64_t>());
 		}
 
 		inline void long_clock::update() noexcept
@@ -890,7 +890,7 @@ namespace mu
 			const moment n = now();
 			const moment d = n - last_moment;
 			last_moment	   = n;
-			value += d.as_milliseconds<int64_t>();
+			value += d.template as_milliseconds<int64_t>();
 		}
 	} // namespace time
 } // namespace mu
