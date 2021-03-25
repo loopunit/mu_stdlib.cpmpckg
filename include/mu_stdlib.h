@@ -72,6 +72,13 @@ namespace mu
 namespace mu
 {
 	namespace leaf = boost::leaf;
+
+	struct runtime_error
+	{
+		struct not_specified
+		{
+		};
+	};
 }
 
 namespace mu
