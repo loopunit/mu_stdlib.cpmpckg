@@ -1,11 +1,18 @@
 #pragma once
 
-#include <functional>
 #include <atomic>
 #include <array>
 #include <cstdint>
+#include <future>
+#include <functional>
+#include <optional>
 
-//#define SG_REQUIRE_NOEXCEPT_IN_CPP17
+#ifndef SPDLOG_FMT_EXTERNAL
+#define SPDLOG_FMT_EXTERNAL 1
+#endif
+#include <spdlog/spdlog.h>
+
+#define SG_REQUIRE_NOEXCEPT_IN_CPP17
 #include <scope_guard.hpp>
 
 // TODO: leaf pulls in Windows.h via common.hpp, so we bypass that here to avoid the mess
@@ -79,7 +86,46 @@ namespace mu
 		{
 		};
 	};
-}
+
+	template<typename T_ERR>
+	inline constexpr bool break_on_error() noexcept
+	{
+		return false;
+	}
+} // namespace mu
+
+#define MU_LEAF_RETHROW(r)                                                                                                                                                         \
+	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
+	static_assert(::boost::leaf::is_result_type<typename std::decay<decltype(BOOST_LEAF_TMP)>::type>::value, "MU_LEAF_CHECK requires a result object (see is_result_type)");       \
+	if (BOOST_LEAF_TMP)                                                                                                                                                            \
+		;                                                                                                                                                                          \
+	else                                                                                                                                                                           \
+	{                                                                                                                                                                              \
+		return BOOST_LEAF_TMP.error();                                                                                                                                             \
+	}
+
+#define MU_LEAF_ASSIGN(v, r)                                                                                                                                                       \
+	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
+	static_assert(                                                                                                                                                                 \
+		::boost::leaf::is_result_type<typename std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                 \
+		"MU_LEAF_ASSIGN and MU_LEAF_AUTO require a result object as the second argument (see is_result_type)");                                                                    \
+	if (!BOOST_LEAF_TMP)                                                                                                                                                           \
+	{                                                                                                                                                                              \
+		return BOOST_LEAF_TMP.error();                                                                                                                                             \
+	}                                                                                                                                                                              \
+	v = std::forward<decltype(BOOST_LEAF_TMP)>(BOOST_LEAF_TMP).value()
+
+#define MU_LEAF_AUTO(v, r) MU_LEAF_ASSIGN(auto v, r)
+
+#define MU_LEAF_CHECK(r)                                                                                                                                                           \
+	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
+	static_assert(::boost::leaf::is_result_type<typename std::decay<decltype(BOOST_LEAF_TMP)>::type>::value, "MU_LEAF_CHECK requires a result object (see is_result_type)");       \
+	if (BOOST_LEAF_TMP)                                                                                                                                                            \
+		;                                                                                                                                                                          \
+	else                                                                                                                                                                           \
+	{                                                                                                                                                                              \
+		return BOOST_LEAF_TMP.error();                                                                                                                                             \
+	}
 
 namespace mu
 {
@@ -87,6 +133,18 @@ namespace mu
 	constexpr auto underlying_cast(E e) noexcept -> typename std::underlying_type<E>::type
 	{
 		return static_cast<typename std::underlying_type<E>::type>(e);
+	}
+} // namespace mu
+
+namespace mu
+{
+	template<typename T>
+	using optional_future = std::future<std::optional<T>>;
+
+	template<typename T>
+	inline bool future_is_ready(T const& f) noexcept
+	{
+		return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 	}
 } // namespace mu
 
@@ -550,14 +608,14 @@ namespace mu
 {
 	namespace time
 	{
-		int64_t performance_frequency() noexcept;
-		int64_t get_now() noexcept;
-		void	sleep(const int64_t milliseconds) noexcept;
-		void	micro_sleep(const int64_t tx) noexcept;
-		void	init() noexcept;
-		void	calibrate() noexcept;
-		void	set_high_resolution_timer() noexcept;
-		void	release_high_resolution_timer();
+		int64_t			   performance_frequency() noexcept;
+		int64_t			   get_now() noexcept;
+		void			   sleep(const int64_t milliseconds) noexcept;
+		void			   micro_sleep(const int64_t tx) noexcept;
+		void			   init() noexcept;
+		void			   calibrate() noexcept;
+		void			   set_high_resolution_timer() noexcept;
+		leaf::result<void> release_high_resolution_timer() noexcept;
 
 		class moment
 		{
@@ -904,4 +962,141 @@ namespace mu
 
 namespace mu
 {
+	enum class messagebox_result : int
+	{
+		ok = 0,
+		cancel,
+		yes,
+		no,
+		quit,
+		none,
+		error
+	};
+
+	enum class messagebox_style : int
+	{
+		info = 0,
+		warning,
+		error,
+		question
+	};
+
+	enum class messagebox_buttons : int
+	{
+		ok = 0,
+		okcancel,
+		yesno,
+		quit
+	};
+
+	namespace details
+	{
+		template<typename T>
+		struct future_helper
+		{
+			bool m_state = false;
+			T	 m_future;
+
+			using value_type = decltype(m_future.get());
+
+			bool is_active() const noexcept
+			{
+				return m_state;
+			}
+
+			bool is_ready() const noexcept
+			{
+				if (m_state)
+				{
+					return future_is_ready(m_future);
+				}
+				return false;
+			}
+
+			value_type acquire_value() noexcept
+			{
+				m_state = false;
+				return m_future.get();
+			}
+
+			std::optional<value_type> get_value() noexcept
+			{
+				if (is_ready())
+				{
+					return acquire_value();
+				}
+				return std::nullopt;
+			}
+		};
+	} // namespace details
+
+	namespace details
+	{
+		std::future<messagebox_result> show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept;
+	}
+
+	using messagebox_future = details::future_helper<decltype(details::show_messagebox("", "", messagebox_style(), messagebox_buttons()))>;
+	inline messagebox_future show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept
+	{
+		return {true, details::show_messagebox(message, title, style, buttons)};
+	}
+
+	namespace details
+	{
+		optional_future<std::string>			  show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept;
+		optional_future<std::vector<std::string>> show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept;
+		optional_future<std::string>			  show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept;
+		optional_future<std::string>			  show_path_dialog(std::string_view origin, std::string_view filter) noexcept;
+	} // namespace details
+
+	using file_open_dialog_future = details::future_helper<decltype(details::show_file_open_dialog(std::string_view(), std::string_view()))>;
+	inline file_open_dialog_future show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept
+	{
+		return {true, details::show_file_open_dialog(origin, filter)};
+	}
+
+	using file_open_multiple_dialog_future = details::future_helper<decltype(details::show_file_open_multiple_dialog(std::string_view(), std::string_view()))>;
+	inline file_open_multiple_dialog_future show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept
+	{
+		return {true, details::show_file_open_multiple_dialog(origin, filter)};
+	}
+
+	using file_save_dialog_future = details::future_helper<decltype(details::show_file_save_dialog(std::string_view(), std::string_view()))>;
+	inline file_save_dialog_future show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept
+	{
+		return {true, details::show_file_save_dialog(origin, filter)};
+	}
+
+	using path_dialog_future = details::future_helper<decltype(details::show_path_dialog(std::string_view(), std::string_view()))>;
+	inline path_dialog_future show_path_dialog(std::string_view origin, std::string_view filter) noexcept
+	{
+		return {true, details::show_path_dialog(origin, filter)};
+	}
+} // namespace mu
+
+namespace backward
+{
+	class StackTrace;
 }
+
+namespace mu
+{
+	namespace debug
+	{
+		namespace details
+		{
+			struct logger_interface
+			{
+				logger_interface()			= default;
+				virtual ~logger_interface() = default;
+
+				virtual std::shared_ptr<spdlog::logger> stdout_logger() noexcept = 0;
+				virtual std::shared_ptr<spdlog::logger> stderr_logger() noexcept = 0;
+			};
+		} // namespace details
+
+		using logger = mu::exported_singleton<mu::virtual_singleton<details::logger_interface>>;
+
+		void log_stack_trace(spdlog::logger& l, spdlog::level::level_enum lvl, unsigned int level_skip) noexcept;
+	} // namespace debug
+} // namespace mu
