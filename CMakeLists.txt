@@ -73,6 +73,18 @@ endif()
 ####
 
 CPMAddPackage(
+	NAME foonathan_memory
+	GIT_TAG 5f1dfd38f1fa68042962cd71fb79747648df1e74
+	GITHUB_REPOSITORY foonathan/memory
+	DOWNLOAD_ONLY true)
+	
+if( NOT ${foonathan_memory_ADDED} )
+	message( FATAL_ERROR "Could not find foonathan_memory" )
+endif()
+
+####
+
+CPMAddPackage(
 	NAME spdlog
 	GITHUB_REPOSITORY gabime/spdlog
 	GIT_TAG 18e3f07f7d333d33c0ef8fbea02299dbe5d49f97 
@@ -120,6 +132,13 @@ endif()
 
 ####
 
+set(FOONATHAN_MEMORY_BUILD_EXAMPLES OFF)
+set(FOONATHAN_MEMORY_BUILD_TESTS OFF)
+set(FOONATHAN_MEMORY_BUILD_TOOLS OFF)
+add_subdirectory(${foonathan_memory_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/foonathan_memory)
+
+####
+
 set(mu_stdlib_SOURCE_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
 file(GLOB mu_stdlib_headers
@@ -162,7 +181,7 @@ target_include_directories(mu_stdlib
 
 target_link_libraries(mu_stdlib
 	PUBLIC
-		cpm_install::boostorg_leaf)
+		cpm_install::boostorg_leaf foonathan_memory)
 
 if (WIN32)		
 target_link_libraries(mu_stdlib
