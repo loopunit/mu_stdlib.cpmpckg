@@ -31,6 +31,8 @@ namespace mu
 		}
 		catch (...)
 		{
+			// TODO: log error
+			return;
 		}
 
 		void log_stack_trace(spdlog::logger& l, spdlog::level::level_enum lvl, backward::StackTrace& st, unsigned int level_skip) noexcept
@@ -47,7 +49,8 @@ namespace mu
 		}
 		catch (...)
 		{
-			// TODO: note error
+			// TODO: log error
+			return;
 		}
 
 		namespace details
@@ -58,13 +61,12 @@ namespace mu
 				std::shared_ptr<spdlog::logger> m_stderr_logger;
 				std::shared_ptr<spdlog::logger> m_stdout_logger;
 
-				static inline logger_impl* singleton() noexcept
+				static inline auto singleton() noexcept -> logger_impl*
 				{
 					return reinterpret_cast<logger_impl*>(logger().get());
 				}
 
 				logger_impl()
-				try
 				{
 					auto stderr_logger = std::make_shared<spdlog::logger>("stderr", std::make_shared<spdlog::sinks::stderr_sink_mt>());
 					auto stdout_logger = std::make_shared<spdlog::logger>("stdout", std::make_shared<spdlog::sinks::stdout_sink_mt>());
@@ -86,29 +88,26 @@ namespace mu
 									logger_ref.reset();
 								}
 
-								// TODO: rethrow and try to untangle
+								// Rethrow and try to get some info out of it
 								if (auto x = std::current_exception())
 								{
+									// TODO: concatenate with additional types
+									auto terminate_error_handlers = error_handlers;
+
 									leaf::try_handle_all(
 										[&]() -> leaf::result<void>
 										{
 											std::rethrow_exception(x);
 										},
-										[](leaf::error_info const&)
-										{
-											std::_Exit(EXIT_FAILURE);
-										});
+										terminate_error_handlers);
 								}
+
 								std::_Exit(EXIT_FAILURE);
 							}
 						});
 
 					m_stderr_logger = stderr_logger;
 					m_stdout_logger = stdout_logger;
-				}
-				catch (...)
-				{
-					throw leaf::exception(runtime_error::not_specified{});
 				}
 
 				virtual ~logger_impl()
@@ -125,12 +124,12 @@ namespace mu
 					}
 				}
 
-				virtual std::shared_ptr<spdlog::logger> stdout_logger() noexcept
+				virtual auto stdout_logger() noexcept -> std::shared_ptr<spdlog::logger>
 				{
 					return m_stdout_logger;
 				}
 
-				virtual std::shared_ptr<spdlog::logger> stderr_logger() noexcept
+				virtual auto stderr_logger() noexcept -> std::shared_ptr<spdlog::logger>
 				{
 					return m_stderr_logger;
 				}
@@ -161,14 +160,14 @@ MU_EXPORT_SINGLETON(mu::debug::logger);
 namespace mu
 {
 	// overriding the windows formatmessage handler
-	unsigned long custom_formatmessage(
+	auto custom_formatmessage(
 		unsigned long dwFlags,
 		const void*	  lpSource,
 		unsigned long dwMessageId,
 		unsigned long dwLanguageId,
 		char*		  lpBuffer,
 		unsigned long nSize,
-		va_list*	  Arguments) noexcept
+		va_list*	  Arguments) noexcept -> unsigned long
 	{
 		return ::FormatMessageA(dwFlags, lpSource, dwMessageId, dwLanguageId, lpBuffer, nSize, Arguments);
 	}
@@ -181,7 +180,7 @@ namespace mu
 	{
 		namespace details
 		{
-			static int64_t get_perf_frequency() noexcept
+			static auto get_perf_frequency() noexcept -> int64_t
 			{
 				LARGE_INTEGER perf_freq;
 				QueryPerformanceFrequency(&perf_freq);
@@ -193,7 +192,7 @@ namespace mu
 
 		} // namespace details
 
-		int64_t performance_frequency() noexcept
+		auto performance_frequency() noexcept -> int64_t
 		{
 			return details::s_performance_frequency;
 		}
@@ -208,7 +207,7 @@ namespace mu
 			details::s_performance_frequency = details::get_perf_frequency();
 		}
 
-		int64_t get_now() noexcept
+		auto get_now() noexcept -> int64_t
 		{
 			LARGE_INTEGER now;
 			QueryPerformanceCounter(&now);
@@ -245,7 +244,7 @@ namespace mu
 			}
 		}
 
-		leaf::result<void> release_high_resolution_timer() noexcept
+		auto release_high_resolution_timer() noexcept -> leaf::result<void>
 		try
 		{
 			const int prev_state = details::s_hires_state.fetch_sub(1);
@@ -256,13 +255,13 @@ namespace mu
 			else if (prev_state <= 0)
 			{
 				//"Unbalanced HighResolutionTimer reference count"
-				return leaf::new_error(runtime_error::not_specified{});
+				return MU_LEAF_NEW_ERROR(runtime_error::not_specified{});
 			}
 			return {};
 		}
 		catch (...)
 		{
-			return leaf::new_error(runtime_error::not_specified{});
+			return MU_LEAF_NEW_ERROR(runtime_error::not_specified{});
 		}
 	} // namespace time
 
@@ -278,7 +277,7 @@ namespace mu
 	{
 		namespace details
 		{
-			static int64_t get_perf_frequency() noexcept
+			static auto get_perf_frequency() noexcept -> int64_t
 			{
 				mach_timebase_info_data_t mach_info;
 				mach_timebase_info(&mach_info);
@@ -291,7 +290,7 @@ namespace mu
 
 		} // namespace details
 
-		int64_t performance_frequency() noexcept
+		auto performance_frequency() noexcept -> int64_t
 		{
 			return details::s_performance_frequency;
 		}
@@ -306,7 +305,7 @@ namespace mu
 			details::s_initial = mach_absolute_time();
 		}
 
-		int64_t get_now() noexcept
+		auto get_now() noexcept -> int64_t
 		{
 			return mach_absolute_time() - details::s_initial;
 		}
@@ -354,7 +353,7 @@ namespace mu
 {
 	namespace details
 	{
-		static messagebox_result async_show_messagebox(std::string message, std::string title, messagebox_style style, messagebox_buttons buttons)
+		static auto async_show_messagebox(std::string message, std::string title, messagebox_style style, messagebox_buttons buttons) -> messagebox_result
 		{
 			const auto converted_style = [style]()
 			{
@@ -408,7 +407,7 @@ namespace mu
 			};
 		}
 
-		std::future<messagebox_result> show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept
+		auto show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept -> std::future<messagebox_result>
 		{
 			return std::async(std::launch::async, async_show_messagebox, std::string(message), std::string(title), style, buttons);
 		}
@@ -417,7 +416,7 @@ namespace mu
 	namespace details
 	{
 		// indirect call required to copy the string views
-		static std::optional<std::string> async_file_open_dialog(std::string filter, std::string loc) noexcept
+		static auto async_file_open_dialog(std::string filter, std::string loc) noexcept -> std::optional<std::string>
 		try
 		{
 			std::string result;
@@ -445,7 +444,7 @@ namespace mu
 			return std::nullopt;
 		}
 
-		static std::optional<std::vector<std::string>> async_file_open_multiple_dialog(std::string filter, std::string loc) noexcept
+		static auto async_file_open_multiple_dialog(std::string filter, std::string loc) noexcept -> std::optional<std::vector<std::string>>
 		try
 		{
 			std::vector<std::string> results;
@@ -486,7 +485,7 @@ namespace mu
 			return std::nullopt;
 		}
 
-		static std::optional<std::string> async_file_save_dialog(std::string filter, std::string loc) noexcept
+		static auto async_file_save_dialog(std::string filter, std::string loc) noexcept -> std::optional<std::string>
 		try
 		{
 			std::string result;
@@ -515,7 +514,7 @@ namespace mu
 			return std::nullopt;
 		}
 
-		static std::optional<std::string> async_show_choose_path_dialog(std::string loc) noexcept
+		static auto async_show_choose_path_dialog(std::string loc) noexcept -> std::optional<std::string>
 		try
 		{
 			std::string result;
@@ -544,22 +543,22 @@ namespace mu
 			return std::nullopt;
 		}
 
-		optional_future<std::string> show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept
+		auto show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::string>
 		{
 			return std::async(std::launch::async, async_file_open_dialog, std::string(filter), std::string(origin));
 		}
 
-		optional_future<std::vector<std::string>> show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept
+		auto show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::vector<std::string>>
 		{
 			return std::async(std::launch::async, async_file_open_multiple_dialog, std::string(filter), std::string(origin));
 		}
 
-		optional_future<std::string> show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept
+		auto show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::string>
 		{
 			return std::async(std::launch::async, async_file_save_dialog, std::string(filter), std::string(origin));
 		}
 
-		optional_future<std::string> show_path_dialog(std::string_view origin, std::string_view filter) noexcept
+		auto show_path_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::string>
 		{
 			return std::async(std::launch::async, async_show_choose_path_dialog, std::string(origin));
 		}

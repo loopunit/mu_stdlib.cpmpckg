@@ -6,6 +6,7 @@
 #include <future>
 #include <functional>
 #include <optional>
+#include <bitset>
 
 #ifndef SPDLOG_FMT_EXTERNAL
 #define SPDLOG_FMT_EXTERNAL 1
@@ -30,14 +31,14 @@
 
 namespace mu
 {
-	unsigned long custom_formatmessage(
+	auto custom_formatmessage(
 		unsigned long dwFlags,
 		const void*	  lpSource,
 		unsigned long dwMessageId,
 		unsigned long dwLanguageId,
 		char*		  lpBuffer,
 		unsigned long nSize,
-		va_list*	  Arguments) noexcept;
+		va_list*	  Arguments) noexcept -> unsigned long;
 }
 
 #define FormatMessageA(DWORD_dwFlags, LPCVOID_lpSource, DWORD_dwMessageId, DWORD_dwLanguageId, LPSTR_lpBuffer, DWORD_nSize, va_list_Arguments)                                     \
@@ -78,20 +79,27 @@ namespace mu
 
 namespace mu
 {
+	template<typename E>
+	constexpr auto underlying_cast(E e) noexcept -> typename std::underlying_type<E>::type
+	{
+		return static_cast<typename std::underlying_type<E>::type>(e);
+	}
+} // namespace mu
+
+namespace mu
+{
 	namespace leaf = boost::leaf;
+
+	struct common_error
+	{
+	};
 
 	struct runtime_error
 	{
-		struct not_specified
+		struct not_specified : common_error
 		{
 		};
 	};
-
-	template<typename T_ERR>
-	inline constexpr bool break_on_error() noexcept
-	{
-		return false;
-	}
 } // namespace mu
 
 #define MU_LEAF_RETHROW(r)                                                                                                                                                         \
@@ -117,6 +125,19 @@ namespace mu
 
 #define MU_LEAF_AUTO(v, r) MU_LEAF_ASSIGN(auto v, r)
 
+#define MU_LEAF_ASSIGN_THROW(v, r)                                                                                                                                                       \
+	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
+	static_assert(                                                                                                                                                                 \
+		::boost::leaf::is_result_type<typename std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                 \
+		"MU_LEAF_ASSIGN and MU_LEAF_AUTO require a result object as the second argument (see is_result_type)");                                                                    \
+	if (!BOOST_LEAF_TMP)                                                                                                                                                           \
+	{                                                                                                                                                                              \
+		throw BOOST_LEAF_TMP.error();                                                                                                                                             \
+	}                                                                                                                                                                              \
+	v = std::forward<decltype(BOOST_LEAF_TMP)>(BOOST_LEAF_TMP).value()
+
+#define MU_LEAF_AUTO_THROW(v, r) MU_LEAF_ASSIGN_THROW(auto v, r)
+
 #define MU_LEAF_CHECK(r)                                                                                                                                                           \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
 	static_assert(::boost::leaf::is_result_type<typename std::decay<decltype(BOOST_LEAF_TMP)>::type>::value, "MU_LEAF_CHECK requires a result object (see is_result_type)");       \
@@ -127,14 +148,10 @@ namespace mu
 		return BOOST_LEAF_TMP.error();                                                                                                                                             \
 	}
 
-namespace mu
-{
-	template<typename E>
-	constexpr auto underlying_cast(E e) noexcept -> typename std::underlying_type<E>::type
-	{
-		return static_cast<typename std::underlying_type<E>::type>(e);
-	}
-} // namespace mu
+#define MU_LEAF_NEW_ERROR		::boost::leaf::leaf_detail::inject_loc{__FILE__, __LINE__, __FUNCTION__} + ::boost::leaf::new_error
+#define MU_LEAF_EXCEPTION		::boost::leaf::leaf_detail::inject_loc{__FILE__, __LINE__, __FUNCTION__} + ::boost::leaf::exception
+#define MU_LEAF_THROW_EXCEPTION ::boost::leaf::leaf_detail::throw_with_loc{__FILE__, __LINE__, __FUNCTION__} + ::boost::leaf::exception
+#define MU_LEAF_LOG_ERROR(...) ((void)0)
 
 namespace mu
 {
@@ -142,7 +159,7 @@ namespace mu
 	using optional_future = std::future<std::optional<T>>;
 
 	template<typename T>
-	inline bool future_is_ready(T const& f) noexcept
+	inline auto future_is_ready(T const& f) noexcept -> bool
 	{
 		return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 	}
@@ -156,22 +173,22 @@ namespace mu
 		class static_root_singleton
 		{
 		public:
-			T* operator->() noexcept
+			auto operator->() noexcept -> T*
 			{
 				return s_instance;
 			}
 
-			const T* operator->() const noexcept
+			auto operator->() const noexcept -> const T*
 			{
 				return s_instance;
 			}
 
-			T& operator*() noexcept
+			auto operator*() noexcept -> T&
 			{
 				return *s_instance;
 			}
 
-			const T& operator*() const noexcept
+			auto operator*() const noexcept -> const T&
 			{
 				return *s_instance;
 			}
@@ -255,7 +272,7 @@ namespace mu
 		template<typename T, typename... T_DEPS>
 		struct singleton_factory
 		{
-			static inline T* create() noexcept
+			static inline auto create() noexcept -> T*
 			{
 				if constexpr (sizeof...(T_DEPS) > 0)
 				{
@@ -268,7 +285,7 @@ namespace mu
 		template<typename T>
 		struct virtual_singleton_factory
 		{
-			static T* create() noexcept;
+			static auto create() noexcept -> T*;
 		};
 	} // namespace details
 
@@ -278,7 +295,7 @@ namespace mu
 		namespace details                                                                                                                                                          \
 		{                                                                                                                                                                          \
 			template<>                                                                                                                                                             \
-			T* virtual_singleton_factory<T>::create() noexcept                                                                                                                     \
+			auto virtual_singleton_factory<T>::create() noexcept -> T*                                                                                                             \
 			{                                                                                                                                                                      \
 				return new T_DERIVED;                                                                                                                                              \
 			}                                                                                                                                                                      \
@@ -292,7 +309,7 @@ namespace mu
 		namespace details                                                                                                                                                          \
 		{                                                                                                                                                                          \
 			template<>                                                                                                                                                             \
-			T* virtual_singleton_factory<T>::create() noexcept                                                                                                                     \
+			auto virtual_singleton_factory<T>::create() noexcept -> T*                                                                                                             \
 			{                                                                                                                                                                      \
 				singleton_dependencies<__VA_ARGS__>::update();                                                                                                                     \
 				return new T_DERIVED;                                                                                                                                              \
@@ -310,32 +327,32 @@ namespace mu
 			using factory = T_FACTORY;
 			using type	  = T;
 
-			T* operator->() noexcept
+			auto operator->() noexcept -> T*
 			{
 				return s_instance;
 			}
 
-			const T* operator->() const noexcept
+			auto operator->() const noexcept -> const T*
 			{
 				return s_instance;
 			}
 
-			T& operator*() noexcept
+			auto operator*() noexcept -> T&
 			{
 				return *s_instance;
 			}
 
-			const T& operator*() const noexcept
+			auto operator*() const noexcept -> const T&
 			{
 				return *s_instance;
 			}
 
-			T* get() noexcept
+			auto get() noexcept -> T*
 			{
 				return s_instance;
 			}
 
-			const T* get() const noexcept
+			auto get() const noexcept -> const T*
 			{
 				return s_instance;
 			}
@@ -373,32 +390,32 @@ namespace mu
 		using singleton_type = T_SINGLETON;
 		using type			 = typename singleton_type::type;
 
-		type* operator->() noexcept
+		auto operator->() noexcept -> type*
 		{
 			return s_instance;
 		}
 
-		const type* operator->() const noexcept
+		auto operator->() const noexcept -> const type*
 		{
 			return s_instance;
 		}
 
-		type& operator*() noexcept
+		auto operator*() noexcept -> type&
 		{
 			return *s_instance;
 		}
 
-		const type& operator*() const noexcept
+		auto operator*() const noexcept -> const type&
 		{
 			return *s_instance;
 		}
 
-		type* get() noexcept
+		auto get() noexcept -> type*
 		{
 			return s_instance;
 		}
 
-		const type* get() const noexcept
+		auto get() const noexcept -> const type*
 		{
 			return s_instance;
 		}
@@ -419,7 +436,7 @@ namespace mu
 
 #define MU_EXPORT_SINGLETON(T)                                                                                                                                                     \
 	template<>                                                                                                                                                                     \
-	T::type* T::get_instance() noexcept                                                                                                                                            \
+	auto T::get_instance() noexcept->T::type*                                                                                                                                      \
 	{                                                                                                                                                                              \
 		return singleton_type().get();                                                                                                                                             \
 	}                                                                                                                                                                              \
@@ -427,7 +444,7 @@ namespace mu
 
 #define MU_EXPORT_SINGLETON_DEPS(T, ...)                                                                                                                                           \
 	template<>                                                                                                                                                                     \
-	T::type* T::get_instance() noexcept                                                                                                                                            \
+	auto T::get_instance() noexcept->T::type*                                                                                                                                      \
 	{                                                                                                                                                                              \
 		::mu::details::singleton_dependencies<__VA_ARGS__>::update();                                                                                                              \
 		return singleton_type().get();                                                                                                                                             \
@@ -440,19 +457,22 @@ namespace mu
 		class static_root_thread_local_singleton
 		{
 		public:
-			T* operator->() noexcept
+			auto operator->() noexcept -> T*
 			{
 				return s_instance;
 			}
-			const T* operator->() const noexcept
+
+			auto operator->() const noexcept -> const T*
 			{
 				return s_instance;
 			}
-			T& operator*() noexcept
+
+			auto operator*() noexcept -> T&
 			{
 				return *s_instance;
 			}
-			const T& operator*() const noexcept
+
+			auto operator*() const noexcept -> const T&
 			{
 				return *s_instance;
 			}
@@ -489,32 +509,32 @@ namespace mu
 		{
 		public:
 			using type = T;
-			T* operator->() noexcept
+			auto operator->() noexcept -> T*
 			{
 				return s_instance;
 			}
 
-			const T* operator->() const noexcept
+			auto operator->() const noexcept -> const T*
 			{
 				return s_instance;
 			}
 
-			T& operator*() noexcept
+			auto operator*() noexcept -> T&
 			{
 				return *s_instance;
 			}
 
-			const T& operator*() const noexcept
+			auto operator*() const noexcept -> const T&
 			{
 				return *s_instance;
 			}
 
-			T* get() noexcept
+			auto get() noexcept -> T*
 			{
 				return s_instance;
 			}
 
-			const T* get() const noexcept
+			auto get() const noexcept -> const T*
 			{
 				return s_instance;
 			}
@@ -551,32 +571,32 @@ namespace mu
 		using singleton_type = T_SINGLETON;
 		using type			 = typename singleton_type::type;
 
-		type* operator->() noexcept
+		auto operator->() noexcept -> type*
 		{
 			return s_instance;
 		}
 
-		const type* operator->() const noexcept
+		auto operator->() const noexcept -> const type*
 		{
 			return s_instance;
 		}
 
-		type& operator*() noexcept
+		auto operator*() noexcept -> type&
 		{
 			return *s_instance;
 		}
 
-		const type& operator*() const noexcept
+		auto operator*() const noexcept -> const type&
 		{
 			return *s_instance;
 		}
 
-		type* get() noexcept
+		auto get() noexcept -> type*
 		{
 			return s_instance;
 		}
 
-		const type* get() const noexcept
+		auto get() const noexcept -> const type*
 		{
 			return s_instance;
 		}
@@ -597,7 +617,7 @@ namespace mu
 
 #define MU_EXPORT_THREAD_LOCAL_SINGLETON(T)                                                                                                                                        \
 	template<>                                                                                                                                                                     \
-	::mu::exported_thread_local_singleton<T>::type* ::mu::exported_thread_local_singleton<T>::get_instance() noexcept                                                              \
+	auto ::mu::exported_thread_local_singleton<T>::get_instance() noexcept->::mu::exported_thread_local_singleton<T>::type*                                                        \
 	{                                                                                                                                                                              \
 		return singleton_type().get();                                                                                                                                             \
 	}                                                                                                                                                                              \
@@ -608,14 +628,14 @@ namespace mu
 {
 	namespace time
 	{
-		int64_t			   performance_frequency() noexcept;
-		int64_t			   get_now() noexcept;
-		void			   sleep(const int64_t milliseconds) noexcept;
-		void			   micro_sleep(const int64_t tx) noexcept;
-		void			   init() noexcept;
-		void			   calibrate() noexcept;
-		void			   set_high_resolution_timer() noexcept;
-		leaf::result<void> release_high_resolution_timer() noexcept;
+		auto performance_frequency() noexcept -> int64_t;
+		auto get_now() noexcept -> int64_t;
+		void sleep(const int64_t milliseconds) noexcept;
+		void micro_sleep(const int64_t tx) noexcept;
+		void init() noexcept;
+		void calibrate() noexcept;
+		void set_high_resolution_timer() noexcept;
+		auto release_high_resolution_timer() noexcept -> leaf::result<void>;
 
 		class moment
 		{
@@ -629,131 +649,131 @@ namespace mu
 
 			moment(const long double v) noexcept : value(static_cast<int64_t>(v)) { }
 
-			friend moment now() noexcept;
+			friend auto now() noexcept -> moment;
 
 			template<typename T>
-			friend moment seconds(const T&) noexcept;
+			friend auto seconds(const T&) noexcept -> moment;
 
 			template<typename T>
-			friend moment milliseconds(const T&) noexcept;
+			friend auto milliseconds(const T&) noexcept -> moment;
 
 			template<typename T>
-			friend moment microseconds(const T&) noexcept;
+			friend auto microseconds(const T&) noexcept -> moment;
 
 			template<typename T>
-			friend moment nanoseconds(const T&) noexcept;
+			friend auto nanoseconds(const T&) noexcept -> moment;
 
 		public:
 			moment() noexcept : value(0) { }
 
-			inline moment& operator=(const moment& rhs) noexcept
+			inline auto operator=(const moment& rhs) noexcept -> moment&
 			{
 				value = rhs.value;
 				return *this;
 			}
 
-			inline moment& operator+=(const moment& rhs) noexcept
+			inline auto operator+=(const moment& rhs) noexcept -> moment&
 			{
 				value += rhs.value;
 				return *this;
 			}
 
-			inline moment& operator-=(const moment& rhs) noexcept
+			inline auto operator-=(const moment& rhs) noexcept -> moment&
 			{
 				value += rhs.value;
 				return *this;
 			}
 
 			template<typename T>
-			inline moment& operator*=(const T& rhs) noexcept
+			inline auto operator*=(const T& rhs) noexcept -> moment&
 			{
 				value = static_cast<int64_t>(static_cast<long double>(value) * static_cast<long double>(rhs));
 				return *this;
 			}
 
 			template<typename T>
-			inline moment& operator/=(const T& rhs) noexcept
+			inline auto operator/=(const T& rhs) noexcept -> moment&
 			{
 				value = static_cast<int64_t>(static_cast<long double>(value) / static_cast<long double>(rhs));
 				return *this;
 			}
 
-			inline moment add(const moment& rhs) const noexcept
+			inline auto add(const moment& rhs) const noexcept -> moment
 			{
 				return moment{value + rhs.value};
 			}
 
-			inline moment sub(const moment& rhs) const noexcept
+			inline auto sub(const moment& rhs) const noexcept -> moment
 			{
 				return moment{value - rhs.value};
 			}
 
 			template<typename T>
-			inline moment div(const T& rhs) const noexcept
+			inline auto div(const T& rhs) const noexcept -> moment
 			{
 				return moment{static_cast<long double>(value) / static_cast<long double>(rhs)};
 			}
 
 			template<typename T>
-			inline moment mul(const T& rhs) const noexcept
+			inline auto mul(const T& rhs) const noexcept -> moment
 			{
 				return moment{static_cast<long double>(value) * static_cast<long double>(rhs)};
 			}
 
 			template<typename T>
-			inline T as_seconds() const noexcept
+			inline auto as_seconds() const noexcept -> T
 			{
 				return static_cast<T>(static_cast<long double>(value) / static_cast<long double>(performance_frequency()));
 			}
 
 			template<typename T>
-			inline T as_milliseconds() const noexcept
+			inline auto as_milliseconds() const noexcept -> T
 			{
 				return static_cast<T>(static_cast<long double>(value) / ((static_cast<long double>(performance_frequency()) / static_cast<long double>(1000ull))));
 			}
 
 			template<typename T>
-			inline T as_microseconds() const noexcept
+			inline auto as_microseconds() const noexcept -> T
 			{
 				return static_cast<T>(static_cast<long double>(value) / ((static_cast<long double>(performance_frequency()) / static_cast<long double>(1000ull * 1000ull))));
 			}
 
 			template<typename T>
-			inline T as_nanoseconds() const noexcept
+			inline auto as_nanoseconds() const noexcept -> T
 			{
 				return static_cast<T>(
 					static_cast<long double>(value) / ((static_cast<long double>(performance_frequency()) / static_cast<long double>(1000ull * 1000ull * 1000ull))));
 			}
 
 			template<typename T>
-			inline T as_ticks() const noexcept
+			inline auto as_ticks() const noexcept -> T
 			{
 				return static_cast<T>(value);
 			}
 
 			template<typename T>
-			inline moment& set_seconds(const T& seconds) noexcept
+			inline auto set_seconds(const T& seconds) noexcept -> moment&
 			{
 				value = static_cast<int64_t>((static_cast<long double>(performance_frequency())) * static_cast<long double>(seconds));
 				return *this;
 			}
 
 			template<typename T>
-			inline moment& set_milliseconds(const T& seconds) noexcept
+			inline auto set_milliseconds(const T& seconds) noexcept -> moment&
 			{
 				value = static_cast<int64_t>((static_cast<long double>(performance_frequency()) / static_cast<long double>(1000ull)) * static_cast<long double>(seconds));
 				return *this;
 			}
 
 			template<typename T>
-			inline moment& set_microseconds(const T& seconds) noexcept
+			inline auto set_microseconds(const T& seconds) noexcept -> moment&
 			{
 				value = static_cast<int64_t>((static_cast<long double>(performance_frequency()) / static_cast<long double>(1000ull * 1000ull)) * static_cast<long double>(seconds));
 				return *this;
 			}
 
 			template<typename T>
-			inline moment& set_nanoseconds(const T& seconds) noexcept
+			inline auto set_nanoseconds(const T& seconds) noexcept -> moment&
 			{
 				value = static_cast<int64_t>(
 					(static_cast<long double>(performance_frequency()) / static_cast<long double>(1000ull * 1000ull * 1000ull)) * static_cast<long double>(seconds));
@@ -761,13 +781,13 @@ namespace mu
 			}
 
 			template<typename T>
-			inline moment& set_ticks(const T& tx) noexcept
+			inline auto set_ticks(const T& tx) noexcept -> moment&
 			{
 				value = static_cast<int64_t>(tx);
 				return *this;
 			}
 
-			inline moment& now() noexcept
+			inline auto now() noexcept -> moment&
 			{
 				value = get_now();
 				return *this;
@@ -783,19 +803,19 @@ namespace mu
 			long_clock() noexcept : value(0) { }
 
 			template<typename T>
-			inline T as_seconds() const noexcept
+			inline auto as_seconds() const noexcept -> T
 			{
 				return static_cast<T>(static_cast<long double>(value) / static_cast<long double>(1000ull));
 			}
 
 			template<typename T>
-			inline T as_milliseconds() const noexcept
+			inline auto as_milliseconds() const noexcept -> T
 			{
 				return static_cast<T>(static_cast<long double>(value));
 			}
 
 			template<typename T>
-			inline T as_microseconds() const noexcept
+			inline auto as_microseconds() const noexcept -> T
 			{
 				return static_cast<T>(static_cast<long double>(value) * static_cast<long double>(1000ull));
 			}
@@ -803,89 +823,89 @@ namespace mu
 			void update() noexcept;
 		};
 
-		inline bool operator<(const moment& lhs, const moment& rhs) noexcept
+		inline auto operator<(const moment& lhs, const moment& rhs) noexcept -> bool
 		{
 			return lhs.as_ticks<int64_t>() < rhs.as_ticks<int64_t>();
 		}
 
-		inline bool operator<=(const moment& lhs, const moment& rhs) noexcept
+		inline auto operator<=(const moment& lhs, const moment& rhs) noexcept -> bool
 		{
 			return lhs.as_ticks<int64_t>() <= rhs.as_ticks<int64_t>();
 		}
 
-		inline bool operator>(const moment& lhs, const moment& rhs) noexcept
+		inline auto operator>(const moment& lhs, const moment& rhs) noexcept -> bool
 		{
 			return lhs.as_ticks<int64_t>() > rhs.as_ticks<int64_t>();
 		}
 
-		inline bool operator>=(const moment& lhs, const moment& rhs) noexcept
+		inline auto operator>=(const moment& lhs, const moment& rhs) noexcept -> bool
 		{
 			return lhs.as_ticks<int64_t>() >= rhs.as_ticks<int64_t>();
 		}
 
-		inline bool operator==(const moment& lhs, const moment& rhs) noexcept
+		inline auto operator==(const moment& lhs, const moment& rhs) noexcept -> bool
 		{
 			return lhs.as_ticks<int64_t>() == rhs.as_ticks<int64_t>();
 		}
 
-		inline moment operator+(const moment& lhs, const moment& rhs) noexcept
+		inline auto operator+(const moment& lhs, const moment& rhs) noexcept -> moment
 		{
 			return lhs.add(rhs);
 		}
 
-		inline moment operator-(const moment& lhs, const moment& rhs) noexcept
+		inline auto operator-(const moment& lhs, const moment& rhs) noexcept -> moment
 		{
 			return lhs.sub(rhs);
 		}
 
 		template<typename T>
-		inline moment operator/(const moment& lhs, const T& rhs) noexcept
+		inline auto operator/(const moment& lhs, const T& rhs) noexcept -> moment
 		{
 			return lhs.div(rhs);
 		}
 
 		template<typename T>
-		inline moment operator*(const moment& lhs, const T& rhs) noexcept
+		inline auto operator*(const moment& lhs, const T& rhs) noexcept -> moment
 		{
 			return lhs.mul(rhs);
 		}
 
-		inline moment now() noexcept
+		inline auto now() noexcept -> moment
 		{
 			moment t;
 			return t.now();
 		}
 
 		template<typename T>
-		inline moment seconds(const T& val) noexcept
+		inline auto seconds(const T& val) noexcept -> moment
 		{
 			moment t;
 			return t.set_seconds(val);
 		}
 
 		template<typename T>
-		inline moment milliseconds(const T& val) noexcept
+		inline auto milliseconds(const T& val) noexcept -> moment
 		{
 			moment t;
 			return t.set_milliseconds(val);
 		}
 
 		template<typename T>
-		inline moment microseconds(const T& val) noexcept
+		inline auto microseconds(const T& val) noexcept -> moment
 		{
 			moment t;
 			return t.set_microseconds(val);
 		}
 
 		template<typename T>
-		inline moment nanoseconds(const T& val) noexcept
+		inline auto nanoseconds(const T& val) noexcept -> moment
 		{
 			moment t;
 			return t.set_nanoseconds(val);
 		}
 
 		template<typename T>
-		inline moment ticks(const T& val) noexcept
+		inline auto ticks(const T& val) noexcept -> moment
 		{
 			moment t;
 			return t.set_ticks(val);
@@ -999,12 +1019,12 @@ namespace mu
 
 			using value_type = decltype(m_future.get());
 
-			bool is_active() const noexcept
+			auto is_active() const noexcept -> bool
 			{
 				return m_state;
 			}
 
-			bool is_ready() const noexcept
+			auto is_ready() const noexcept -> bool
 			{
 				if (m_state)
 				{
@@ -1013,13 +1033,13 @@ namespace mu
 				return false;
 			}
 
-			value_type acquire_value() noexcept
+			auto acquire_value() noexcept -> value_type
 			{
 				m_state = false;
 				return m_future.get();
 			}
 
-			std::optional<value_type> get_value() noexcept
+			auto get_value() noexcept -> std::optional<value_type>
 			{
 				if (is_ready())
 				{
@@ -1032,43 +1052,43 @@ namespace mu
 
 	namespace details
 	{
-		std::future<messagebox_result> show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept;
+		auto show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept -> std::future<messagebox_result>;
 	}
 
 	using messagebox_future = details::future_helper<decltype(details::show_messagebox("", "", messagebox_style(), messagebox_buttons()))>;
-	inline messagebox_future show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept
+	inline auto show_messagebox(const char* message, const char* title, messagebox_style style, messagebox_buttons buttons) noexcept -> messagebox_future
 	{
 		return {true, details::show_messagebox(message, title, style, buttons)};
 	}
 
 	namespace details
 	{
-		optional_future<std::string>			  show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept;
-		optional_future<std::vector<std::string>> show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept;
-		optional_future<std::string>			  show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept;
-		optional_future<std::string>			  show_path_dialog(std::string_view origin, std::string_view filter) noexcept;
+		auto show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::string>;
+		auto show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::vector<std::string>>;
+		auto show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::string>;
+		auto show_path_dialog(std::string_view origin, std::string_view filter) noexcept -> optional_future<std::string>;
 	} // namespace details
 
 	using file_open_dialog_future = details::future_helper<decltype(details::show_file_open_dialog(std::string_view(), std::string_view()))>;
-	inline file_open_dialog_future show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept
+	inline auto show_file_open_dialog(std::string_view origin, std::string_view filter) noexcept -> file_open_dialog_future
 	{
 		return {true, details::show_file_open_dialog(origin, filter)};
 	}
 
 	using file_open_multiple_dialog_future = details::future_helper<decltype(details::show_file_open_multiple_dialog(std::string_view(), std::string_view()))>;
-	inline file_open_multiple_dialog_future show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept
+	inline auto show_file_open_multiple_dialog(std::string_view origin, std::string_view filter) noexcept -> file_open_multiple_dialog_future
 	{
 		return {true, details::show_file_open_multiple_dialog(origin, filter)};
 	}
 
 	using file_save_dialog_future = details::future_helper<decltype(details::show_file_save_dialog(std::string_view(), std::string_view()))>;
-	inline file_save_dialog_future show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept
+	inline auto show_file_save_dialog(std::string_view origin, std::string_view filter) noexcept -> file_save_dialog_future
 	{
 		return {true, details::show_file_save_dialog(origin, filter)};
 	}
 
 	using path_dialog_future = details::future_helper<decltype(details::show_path_dialog(std::string_view(), std::string_view()))>;
-	inline path_dialog_future show_path_dialog(std::string_view origin, std::string_view filter) noexcept
+	inline auto show_path_dialog(std::string_view origin, std::string_view filter) noexcept -> path_dialog_future
 	{
 		return {true, details::show_path_dialog(origin, filter)};
 	}
@@ -1090,13 +1110,35 @@ namespace mu
 				logger_interface()			= default;
 				virtual ~logger_interface() = default;
 
-				virtual std::shared_ptr<spdlog::logger> stdout_logger() noexcept = 0;
-				virtual std::shared_ptr<spdlog::logger> stderr_logger() noexcept = 0;
+				virtual auto stdout_logger() noexcept -> std::shared_ptr<spdlog::logger> = 0;
+				virtual auto stderr_logger() noexcept -> std::shared_ptr<spdlog::logger> = 0;
 			};
 		} // namespace details
 
 		using logger = mu::exported_singleton<mu::virtual_singleton<details::logger_interface>>;
 
 		void log_stack_trace(spdlog::logger& l, spdlog::level::level_enum lvl, unsigned int level_skip) noexcept;
+
 	} // namespace debug
+
+	static inline auto error_handlers = std::make_tuple(
+		[](runtime_error::not_specified x, leaf::e_source_location sl)
+		{
+			debug::logger()->stderr_logger()->log(spdlog::level::err, "{0} :: {1} -> {2} : runtime_error :: not_specified", sl.line, sl.file, sl.function);
+		},
+		[](common_error x, leaf::e_source_location sl)
+		{
+			debug::logger()->stderr_logger()->log(spdlog::level::err, "{0} :: {1} -> {2} : common_error", sl.line, sl.file, sl.function);
+		},
+		[]
+		{
+			debug::logger()->stderr_logger()->log(spdlog::level::err, "???");
+		});
+
+	template<class TryBlock>
+	constexpr inline auto try_handle(TryBlock&& try_block) -> typename std::decay<decltype(std::declval<TryBlock>()().value())>::type
+	{
+		return leaf::try_handle_all(try_block, error_handlers);
+	}
+
 } // namespace mu
