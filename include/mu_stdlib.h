@@ -115,7 +115,7 @@ namespace mu
 #define MU_LEAF_ASSIGN(v, r)                                                                                                                                                       \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
 	static_assert(                                                                                                                                                                 \
-		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                 \
+		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                          \
 		"MU_LEAF_ASSIGN and MU_LEAF_AUTO require a result object as the second argument (see is_result_type)");                                                                    \
 	if (!BOOST_LEAF_TMP)                                                                                                                                                           \
 	{                                                                                                                                                                              \
@@ -126,7 +126,7 @@ namespace mu
 #define MU_LEAF_PUSH_BACK(v, r)                                                                                                                                                    \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
 	static_assert(                                                                                                                                                                 \
-		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                 \
+		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                          \
 		"MU_LEAF_ASSIGN and MU_LEAF_AUTO require a result object as the second argument (see is_result_type)");                                                                    \
 	if (!BOOST_LEAF_TMP)                                                                                                                                                           \
 	{                                                                                                                                                                              \
@@ -137,7 +137,7 @@ namespace mu
 #define MU_LEAF_EMPLACE_BACK(v, r)                                                                                                                                                 \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
 	static_assert(                                                                                                                                                                 \
-		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                 \
+		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                          \
 		"MU_LEAF_ASSIGN and MU_LEAF_AUTO require a result object as the second argument (see is_result_type)");                                                                    \
 	if (!BOOST_LEAF_TMP)                                                                                                                                                           \
 	{                                                                                                                                                                              \
@@ -150,7 +150,7 @@ namespace mu
 #define MU_LEAF_ASSIGN_THROW(v, r)                                                                                                                                                 \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
 	static_assert(                                                                                                                                                                 \
-		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                 \
+		::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value,                                                                                          \
 		"MU_LEAF_ASSIGN and MU_LEAF_AUTO require a result object as the second argument (see is_result_type)");                                                                    \
 	if (!BOOST_LEAF_TMP)                                                                                                                                                           \
 	{                                                                                                                                                                              \
@@ -162,7 +162,7 @@ namespace mu
 
 #define MU_LEAF_CHECK(r)                                                                                                                                                           \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
-	static_assert(::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value, "MU_LEAF_CHECK requires a result object (see is_result_type)");       \
+	static_assert(::boost::leaf::is_result_type<std::decay<decltype(BOOST_LEAF_TMP)>::type>::value, "MU_LEAF_CHECK requires a result object (see is_result_type)");                \
 	if (BOOST_LEAF_TMP)                                                                                                                                                            \
 		;                                                                                                                                                                          \
 	else                                                                                                                                                                           \
@@ -1163,4 +1163,35 @@ namespace mu
 		return leaf::try_handle_all(try_block, error_handlers);
 	}
 
+} // namespace mu
+
+namespace mu
+{
+	template<typename T_CONTAINER, typename T_FUNC, typename T_FUNC_RET>
+	auto for_some_return(T_CONTAINER& container, T_FUNC func, T_FUNC_RET&& true_return_value, T_FUNC_RET&& false_return_value) noexcept -> T_FUNC_RET
+	{
+		for (auto& itor : container)
+		{
+			if (func(itor))
+			{
+				return true_return_value;
+			}
+		}
+
+		return false_return_value;
+	}
+
+	template<typename T_CONTAINER, typename T_FUNC, typename T_FUNC_RET>
+	auto for_some_optional_return(T_CONTAINER& container, T_FUNC func, T_FUNC_RET&& false_return_value) noexcept -> T_FUNC_RET
+	{
+		for (auto& itor : container)
+		{
+			if (auto res = func(itor))
+			{
+				return *res;
+			}
+		}
+
+		return false_return_value;
+	}
 } // namespace mu
