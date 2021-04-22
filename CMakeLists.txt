@@ -72,15 +72,15 @@ endif()
 	
 ####
 
-CPMAddPackage(
-	NAME foonathan_memory
-	GIT_TAG 5f1dfd38f1fa68042962cd71fb79747648df1e74
-	GITHUB_REPOSITORY foonathan/memory
-	DOWNLOAD_ONLY true)
-	
-if( NOT ${foonathan_memory_ADDED} )
-	message( FATAL_ERROR "Could not find foonathan_memory" )
-endif()
+#CPMAddPackage(
+#	NAME foonathan_memory
+#	GIT_TAG 5f1dfd38f1fa68042962cd71fb79747648df1e74
+#	GITHUB_REPOSITORY foonathan/memory
+#	DOWNLOAD_ONLY true)
+#	
+#if( NOT ${foonathan_memory_ADDED} )
+#	message( FATAL_ERROR "Could not find foonathan_memory" )
+#endif()
 
 ####
 
@@ -132,10 +132,10 @@ endif()
 
 ####
 
-set(FOONATHAN_MEMORY_BUILD_EXAMPLES OFF)
-set(FOONATHAN_MEMORY_BUILD_TESTS OFF)
-set(FOONATHAN_MEMORY_BUILD_TOOLS OFF)
-add_subdirectory(${foonathan_memory_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/foonathan_memory)
+#set(FOONATHAN_MEMORY_BUILD_EXAMPLES OFF)
+#set(FOONATHAN_MEMORY_BUILD_TESTS OFF)
+#set(FOONATHAN_MEMORY_BUILD_TOOLS OFF)
+#add_subdirectory(${foonathan_memory_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/foonathan_memory)
 
 ####
 
@@ -181,7 +181,7 @@ target_include_directories(mu_stdlib
 
 target_link_libraries(mu_stdlib
 	PUBLIC
-		cpm_install::boostorg_leaf foonathan_memory)
+		cpm_install::boostorg_leaf)
 
 if (WIN32)		
 target_link_libraries(mu_stdlib
