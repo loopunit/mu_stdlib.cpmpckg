@@ -13,8 +13,7 @@
 #endif
 #include <spdlog/spdlog.h>
 
-#define SG_REQUIRE_NOEXCEPT_IN_CPP17
-#include <scope_guard.hpp>
+#include <gsl/gsl-lite.hpp>
 
 // TODO: leaf pulls in Windows.h via common.hpp, so we bypass that here to avoid the mess
 // if something did pull in windows.h, this is fine. custom_formatmessage is just a wrapper.

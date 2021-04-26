@@ -466,9 +466,7 @@ namespace mu
 
 namespace mu
 {
-	void enable_dpi_awareness() noexcept
-	{
-	}
+	void enable_dpi_awareness() noexcept { }
 
 	auto get_dpi_scale_for_monitor(void* monitor) noexcept -> float
 	{
@@ -479,7 +477,7 @@ namespace mu
 	{
 		return 1.0f;
 	}
-}
+} // namespace mu
 
 #endif // #ifdef __APPLE__
 

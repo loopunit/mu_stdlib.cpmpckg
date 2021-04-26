@@ -46,13 +46,13 @@ CPMAddBaseModule(boostorg_leaf)
 ####
 
 CPMAddPackage(
-	NAME scope_guard
-	GITHUB_REPOSITORY ricab/scope_guard
-	GIT_TAG 760de0a9ea0fec980a5244604ffa5b1acff2db7a
+	NAME gsl_lite
+	GITHUB_REPOSITORY gsl-lite/gsl-lite
+	GIT_TAG e1c381746c2625a76227255f999ae9f14a062208
 	DOWNLOAD_ONLY true)
 	
-if( NOT ${scope_guard_ADDED} )
-	message( FATAL_ERROR "Could not find scope_guard" )
+if( NOT ${gsl_lite_ADDED} )
+	message( FATAL_ERROR "Could not find gsl_lite" )
 endif()
 
 ####
@@ -169,7 +169,6 @@ add_library(mu_stdlib STATIC ${mu_stdlib_sources} ${mu_stdlib_headers} ${mu_stdl
 
 target_include_directories(mu_stdlib
 	PUBLIC 
-		$<BUILD_INTERFACE:${scope_guard_SOURCE_DIR}>
 		$<BUILD_INTERFACE:${backward_cpp_SOURCE_DIR}>
 		$<BUILD_INTERFACE:${mu_stdlib_SOURCE_ROOT}/include>
 		$<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
@@ -177,6 +176,7 @@ target_include_directories(mu_stdlib
 		$<BUILD_INTERFACE:${nfd_SOURCE_DIR}/src>
 		$<BUILD_INTERFACE:${nfd_SOURCE_DIR}/src/include>
 		$<BUILD_INTERFACE:${boxer_SOURCE_DIR}/include>
+		$<BUILD_INTERFACE:${gsl_lite_SOURCE_DIR}/include>
 		$<INSTALL_INTERFACE:include>)
 
 target_link_libraries(mu_stdlib
@@ -199,10 +199,6 @@ packageProject(
 	INCLUDE_DIR ${mu_stdlib_SOURCE_ROOT}/include
 	INCLUDE_DESTINATION include)
 
-install(
-	FILES ${scope_guard_SOURCE_DIR}/scope_guard.hpp
-	DESTINATION include)
-
 #install(
 #	FILES ${backward_cpp_SOURCE_DIR}/backward.hpp
 #	DESTINATION include)
@@ -213,6 +209,10 @@ install(
 
 install(
 	DIRECTORY ${fmt_SOURCE_DIR}/include/fmt
+	DESTINATION include)
+
+install(
+	DIRECTORY ${gsl_lite_SOURCE_DIR}/include/gsl
 	DESTINATION include)
 
 #install(
