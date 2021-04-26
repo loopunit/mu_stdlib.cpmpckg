@@ -1195,3 +1195,10 @@ namespace mu
 		return false_return_value;
 	}
 } // namespace mu
+
+namespace mu
+{
+	void enable_dpi_awareness() noexcept;
+	auto get_dpi_scale_for_monitor(void* monitor) noexcept -> float;
+	auto get_dpi_scale_for_hwnd(void* hwnd) noexcept -> float;
+}

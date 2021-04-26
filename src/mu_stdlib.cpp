@@ -266,6 +266,125 @@ namespace mu
 	} // namespace time
 
 } // namespace mu
+
+// Implement some of the functions and types normally declared in recent Windows SDK.
+#if !defined(_versionhelpers_H_INCLUDED_) && !defined(_INC_VERSIONHELPERS)
+static BOOL IsWindowsVersionOrGreater(WORD major, WORD minor, WORD sp)
+{
+	OSVERSIONINFOEXW osvi = {sizeof(osvi), major, minor, 0, 0, {0}, sp, 0, 0, 0, 0};
+	DWORD			 mask = VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR;
+	ULONGLONG		 cond = ::VerSetConditionMask(0, VER_MAJORVERSION, VER_GREATER_EQUAL);
+	cond				  = ::VerSetConditionMask(cond, VER_MINORVERSION, VER_GREATER_EQUAL);
+	cond				  = ::VerSetConditionMask(cond, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
+	return ::VerifyVersionInfoW(&osvi, mask, cond);
+}
+#define IsWindows8Point1OrGreater() IsWindowsVersionOrGreater(HIBYTE(0x0602), LOBYTE(0x0602), 0) // _WIN32_WINNT_WINBLUE
+#endif
+
+#ifndef DPI_ENUMS_DECLARED
+typedef enum
+{
+	PROCESS_DPI_UNAWARE			  = 0,
+	PROCESS_SYSTEM_DPI_AWARE	  = 1,
+	PROCESS_PER_MONITOR_DPI_AWARE = 2
+} PROCESS_DPI_AWARENESS;
+typedef enum
+{
+	MDT_EFFECTIVE_DPI = 0,
+	MDT_ANGULAR_DPI	  = 1,
+	MDT_RAW_DPI		  = 2,
+	MDT_DEFAULT		  = MDT_EFFECTIVE_DPI
+} MONITOR_DPI_TYPE;
+#endif
+#ifndef _DPI_AWARENESS_CONTEXTS_
+DECLARE_HANDLE(DPI_AWARENESS_CONTEXT);
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE (DPI_AWARENESS_CONTEXT) - 3
+#endif
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 (DPI_AWARENESS_CONTEXT) - 4
+#endif
+typedef HRESULT(WINAPI* PFN_SetProcessDpiAwareness)(PROCESS_DPI_AWARENESS);						// Shcore.lib + dll, Windows 8.1+
+typedef HRESULT(WINAPI* PFN_GetDpiForMonitor)(HMONITOR, MONITOR_DPI_TYPE, UINT*, UINT*);		// Shcore.lib + dll, Windows 8.1+
+typedef DPI_AWARENESS_CONTEXT(WINAPI* PFN_SetThreadDpiAwarenessContext)(DPI_AWARENESS_CONTEXT); // User32.lib + dll, Windows 10 v1607+ (Creators Update)
+
+#if defined(_MSC_VER) && !defined(NOGDI)
+#pragma comment(lib, "gdi32") // Link with gdi32.lib for GetDeviceCaps()
+#endif
+
+namespace mu
+{
+	// Helper function to enable DPI awareness without setting up a manifest
+	void enable_dpi_awareness() noexcept
+	try
+	{
+		// if (IsWindows10OrGreater()) // This needs a manifest to succeed. Instead we try to grab the function pointer!
+		{
+			static HINSTANCE user32_dll = ::LoadLibraryA("user32.dll"); // Reference counted per-process
+			if (PFN_SetThreadDpiAwarenessContext SetThreadDpiAwarenessContextFn = (PFN_SetThreadDpiAwarenessContext)::GetProcAddress(user32_dll, "SetThreadDpiAwarenessContext"))
+			{
+				SetThreadDpiAwarenessContextFn(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+				return;
+			}
+		}
+
+		if (IsWindows8Point1OrGreater())
+		{
+			static HINSTANCE shcore_dll = ::LoadLibraryA("shcore.dll"); // Reference counted per-process
+			if (PFN_SetProcessDpiAwareness SetProcessDpiAwarenessFn = (PFN_SetProcessDpiAwareness)::GetProcAddress(shcore_dll, "SetProcessDpiAwareness"))
+			{
+				SetProcessDpiAwarenessFn(PROCESS_PER_MONITOR_DPI_AWARE);
+				return;
+			}
+		}
+#if _WIN32_WINNT >= 0x0600
+		::SetProcessDPIAware();
+#endif
+	}
+	catch (...)
+	{
+		// TODO: log error
+	}
+
+	auto get_dpi_scale_for_monitor(void* monitor) noexcept -> float
+	try
+	{
+		UINT		xdpi = 96, ydpi = 96;
+		static BOOL bIsWindows8Point1OrGreater = IsWindows8Point1OrGreater();
+		if (bIsWindows8Point1OrGreater)
+		{
+			static HINSTANCE shcore_dll = ::LoadLibraryA("shcore.dll"); // Reference counted per-process
+			if (PFN_GetDpiForMonitor GetDpiForMonitorFn = (PFN_GetDpiForMonitor)::GetProcAddress(shcore_dll, "GetDpiForMonitor"))
+				GetDpiForMonitorFn((HMONITOR)monitor, MDT_EFFECTIVE_DPI, &xdpi, &ydpi);
+		}
+#ifndef NOGDI
+		else
+		{
+			const HDC dc = ::GetDC(NULL);
+			xdpi		 = ::GetDeviceCaps(dc, LOGPIXELSX);
+			ydpi		 = ::GetDeviceCaps(dc, LOGPIXELSY);
+			::ReleaseDC(NULL, dc);
+		}
+#endif
+		assert(xdpi == ydpi); // Please contact me if you hit this assert!
+		return xdpi / 96.0f;
+	}
+	catch (...)
+	{
+		return 1.0f;
+	}
+
+	auto get_dpi_scale_for_hwnd(void* hwnd) noexcept -> float
+	try
+	{
+		HMONITOR monitor = ::MonitorFromWindow((HWND)hwnd, MONITOR_DEFAULTTONEAREST);
+		return get_dpi_scale_for_monitor(monitor);
+	}
+	catch (...)
+	{
+		return 1.0f;
+	}
+} // namespace mu
+
 #endif // #ifdef _WINDOWS_
 
 #ifdef __APPLE__
@@ -344,6 +463,24 @@ namespace mu
 	} // namespace time
 
 } // namespace mu
+
+namespace mu
+{
+	void enable_dpi_awareness() noexcept
+	{
+	}
+
+	auto get_dpi_scale_for_monitor(void* monitor) noexcept -> float
+	{
+		return 1.0f;
+	}
+
+	auto get_dpi_scale_for_hwnd(void* hwnd) noexcept -> float
+	{
+		return 1.0f;
+	}
+}
+
 #endif // #ifdef __APPLE__
 
 #include <nfd.h>
