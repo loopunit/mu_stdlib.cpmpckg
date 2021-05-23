@@ -45,6 +45,18 @@ CPMAddBaseModule(boostorg_leaf)
 
 ####
 
+CPMAddBaseModule(cwalk)
+
+####
+
+CPMAddBaseModule(libuv)
+
+####
+
+CPMAddBaseModule(taskflow)
+
+####
+
 CPMAddPackage(
 	NAME gsl_lite
 	GITHUB_REPOSITORY gsl-lite/gsl-lite
@@ -181,7 +193,10 @@ target_include_directories(mu_stdlib
 
 target_link_libraries(mu_stdlib
 	PUBLIC
-		cpm_install::boostorg_leaf)
+		cpm_install::boostorg_leaf
+		cpm_install::cwalk
+		cpm_install::libuv
+		cpm_install::taskflow)
 
 if (WIN32)		
 target_link_libraries(mu_stdlib

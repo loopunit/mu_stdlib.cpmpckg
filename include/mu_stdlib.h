@@ -101,12 +101,12 @@ namespace mu
 	};
 } // namespace mu
 
-#define MU_LEAF_IF_REPORT(r)                                                                                                                                                         \
+#define MU_LEAF_IF_REPORT(r)                                                                                                                                                       \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
 	static_assert(::boost::leaf::is_result_type<typename std::decay<decltype(BOOST_LEAF_TMP)>::type>::value, "MU_LEAF_CHECK requires a result object (see is_result_type)");       \
-	if (!BOOST_LEAF_TMP)                                                                                                                                                            \
-		/*TODO: REPORT*/;                                                                                                                                                                          \
-	else                                                                                                                                                                           
+	if (!BOOST_LEAF_TMP)                                                                                                                                                           \
+		/*TODO: REPORT*/;                                                                                                                                                          \
+	else
 
 #define MU_LEAF_RETHROW(r)                                                                                                                                                         \
 	auto&& BOOST_LEAF_TMP = r;                                                                                                                                                     \
@@ -1207,4 +1207,9 @@ namespace mu
 	void enable_dpi_awareness() noexcept;
 	auto get_dpi_scale_for_monitor(void* monitor) noexcept -> float;
 	auto get_dpi_scale_for_hwnd(void* hwnd) noexcept -> float;
+} // namespace mu
+
+namespace mu
+{
+	
 } // namespace mu
